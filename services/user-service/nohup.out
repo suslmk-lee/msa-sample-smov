@@ -9,3 +9,7 @@ signal: terminated
 2025/06/18 21:36:50 Failed to save user to Redis: dial tcp 127.0.0.1:6379: connect: connection refused
 signal: terminated
 2025/06/18 21:44:37 User Service started on :8081
+signal: terminated
+2025/06/18 21:51:24 User Service started on :8081
+signal: terminated
+2025/06/18 21:54:13 User Service started on :8081

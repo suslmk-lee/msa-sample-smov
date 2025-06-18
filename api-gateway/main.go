@@ -8,6 +8,17 @@ import (
 )
 
 func main() {
+	// UI Files
+	fs := http.FileServer(http.Dir("../ui"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.ServeFile(w, r, "../ui/index.html")
+			return
+		}
+		http.NotFound(w, r)
+	})
+
 	// User Service
 	userURL, err := url.Parse("http://127.0.0.1:8081")
 	if err != nil {
