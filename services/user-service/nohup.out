@@ -1,0 +1,11 @@
+2025/06/18 21:32:41 User Service started on :8081
+signal: terminated
+2025/06/18 21:34:47 User Service started on :8081
+signal: terminated
+2025/06/18 21:35:47 User Service started on :8081
+2025/06/18 21:35:56 Failed to save user to Redis: dial tcp [::1]:6379: connect: connection refused
+signal: terminated
+2025/06/18 21:36:41 User Service started on :8081
+2025/06/18 21:36:50 Failed to save user to Redis: dial tcp 127.0.0.1:6379: connect: connection refused
+signal: terminated
+2025/06/18 21:44:37 User Service started on :8081
