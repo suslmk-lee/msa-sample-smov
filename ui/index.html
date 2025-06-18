@@ -7,8 +7,46 @@
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>Available Movies</h1>
-    <div id="movie-list"></div>
+    <h1>Theater Booking System</h1>
+
+    <div class="container">
+        <h2>Create User</h2>
+        <form id="user-form">
+            <input type="text" id="user-name" placeholder="Name" required>
+            <input type="email" id="user-email" placeholder="Email" required>
+            <button type="submit">Create User</button>
+        </form>
+        <div id="user-info"></div>
+    </div>
+
+    <div class="container">
+        <h2>Movie List</h2>
+        <ul id="movie-list"></ul>
+    </div>
+
+    <div class="container">
+        <h2>My Bookings</h2>
+        <form id="view-bookings-form">
+            <input type="text" id="view-user-id" placeholder="Enter Your User ID to see bookings" required>
+            <button type="submit">View My Bookings</button>
+        </form>
+        <ul id="booking-list"></ul>
+    </div>
+
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2 id="booking-movie-title"></h2>
+            <form id="booking-form">
+                <input type="hidden" id="booking-movie-id">
+                <input type="text" id="booking-user-id" placeholder="Your User ID" required>
+                <input type="text" id="booking-seats" placeholder="Seats (e.g., A1,A2)" required>
+                <button type="submit">Confirm Booking</button>
+            </form>
+            <div id="booking-result"></div>
+        </div>
+    </div>
 
     <script src="/static/script.js"></script>
 </body>

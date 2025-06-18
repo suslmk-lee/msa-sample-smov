@@ -20,20 +20,21 @@ func main() {
 	})
 
 	// User Service
-	userURL, err := url.Parse("http://127.0.0.1:8081")
-	if err != nil {
-		log.Fatalf("Failed to parse user service URL: %v", err)
-	}
-	userProxy := httputil.NewSingleHostReverseProxy(userURL)
-	http.Handle("/users/", http.StripPrefix("/users/", userProxy))
+	userServiceProxy := newReverseProxy("http://user-service:8081")
+	http.Handle("/users/", http.StripPrefix("/users/", userServiceProxy))
 
 	// Movie Service
-	movieURL, err := url.Parse("http://127.0.0.1:8082")
+	movieServiceProxy := newReverseProxy("http://movie-service:8082")
+	http.Handle("/movies/", http.StripPrefix("/movies/", movieServiceProxy))
+
+	// Booking Service
+	bookingServiceProxy := newReverseProxy("http://booking-service:8083")
+	http.Handle("/bookings/", http.StripPrefix("/bookings/", bookingServiceProxy))
 	if err != nil {
-		log.Fatalf("Failed to parse movie service URL: %v", err)
+		log.Fatalf("Failed to parse booking service URL: %v", err)
 	}
-	movieProxy := httputil.NewSingleHostReverseProxy(movieURL)
-	http.Handle("/movies/", http.StripPrefix("/movies/", movieProxy))
+	bookingProxy := httputil.NewSingleHostReverseProxy(bookingURL)
+	http.Handle("/bookings/", http.StripPrefix("/bookings/", bookingProxy))
 
 	log.Println("API Gateway started on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
