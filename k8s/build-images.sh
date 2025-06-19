@@ -40,13 +40,24 @@ for SERVICE in "${SERVICES[@]}"; do
     # 이미지 태그 설정
     IMAGE_TAG="${HARBOR_REGISTRY}/${PROJECT_NAME}/${SERVICE}:latest"
     
-    # Podman 빌드
+    # 컨테이너 런타임 자동 감지 및 빌드
     if [ -d "${SERVICE}" ]; then
         echo "  - 빌드: ${IMAGE_TAG}"
-        podman build -t ${IMAGE_TAG} ./${SERVICE}/
         
-        echo "  - 푸시: ${IMAGE_TAG}"
-        podman push ${IMAGE_TAG}
+        # 컨테이너 런타임 확인 (docker 또는 podman)
+        if command -v docker >/dev/null 2>&1; then
+            docker build -t ${IMAGE_TAG} ./${SERVICE}/
+            echo "  - 푸시: ${IMAGE_TAG}"
+            docker push ${IMAGE_TAG}
+        elif command -v podman >/dev/null 2>&1; then
+            # Podman에서 docker.io 레지스트리 명시적 사용
+            podman build --format docker -t ${IMAGE_TAG} ./${SERVICE}/
+            echo "  - 푸시: ${IMAGE_TAG}"
+            podman push ${IMAGE_TAG}
+        else
+            echo "  ❌ 오류: Docker 또는 Podman이 설치되지 않았습니다"
+            exit 1
+        fi
         
         echo "  ✓ 완료: ${SERVICE}"
     else
