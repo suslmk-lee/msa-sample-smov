@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: user-service
-        image: user-service:latest
+        image: harbor.27.96.156.180.nip.io/theater-msa/user-service:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8081

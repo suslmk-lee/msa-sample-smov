@@ -56,7 +56,10 @@ k8s/
 ├── user-service.yaml          # 사용자 서비스
 ├── movie-service.yaml         # 영화 서비스  
 ├── booking-service.yaml       # 예약 서비스
-├── api-gateway.yaml           # API 게이트웨이 + UI
+├── api-gateway.yaml           # API 게이트웨이 (Kubernetes API 권한 포함)
+├── rbac.yaml                  # API Gateway용 서비스 계정 및 권한 설정
+├── ui-configmap.yaml          # UI 파일 (HTML, CSS) ConfigMap
+├── ui-script-configmap.yaml   # UI JavaScript ConfigMap
 ├── ingress.yaml               # 기존 Ingress (참고용)
 ├── istio-gateway.yaml         # Istio Gateway (cp-gateway 사용)
 ├── istio-virtualservice.yaml  # Istio VirtualService (라우팅, 도메인 템플릿)
@@ -199,6 +202,9 @@ kubectl config use-context ctx1
 
 # 기본 리소스 배포
 kubectl apply -f namespace.yaml
+kubectl apply -f rbac.yaml
+kubectl apply -f ui-configmap.yaml
+kubectl apply -f ui-script-configmap.yaml
 kubectl apply -f redis.yaml
 kubectl apply -f user-service.yaml
 kubectl apply -f api-gateway.yaml
@@ -517,6 +523,9 @@ kubectl delete namespace theater-msa
 - **Pod**: 애플리케이션 실행 단위
 - **Deployment**: 애플리케이션 배포 관리
 - **Service**: 서비스 디스커버리
+- **ConfigMap**: 설정 데이터 분리 관리 (UI 파일 포함)
+- **RBAC**: 역할 기반 접근 제어 (Kubernetes API 권한)
+- **ServiceAccount**: Pod의 Kubernetes API 접근 인증
 - **Ingress**: 외부 접근 관리
 
 ### 3. Harbor Registry 및 이미지 관리
@@ -539,6 +548,13 @@ kubectl delete namespace theater-msa
 - **트래픽 분산**: 클라우드별 로드밸런싱 및 장애 조치
 - **통합 관측성**: 전체 인프라에 걸친 통합 모니터링
 - **보안 정책**: 클라우드에 관계없이 일관된 mTLS 보안
+
+### 6. 실시간 배포 상태 모니터링
+- **Kubernetes API 통합**: 실시간 Pod, Node, Deployment 상태 수집
+- **웹 대시보드**: 브라우저에서 직접 확인 가능한 배포 상태
+- **멀티클러스터 시각화**: 클러스터별 서비스 분산 현황 표시
+- **3열 UI 레이아웃**: 사용자/영화/예약 데이터 컴팩트 표시
+- **ConfigMap 기반 UI**: UI 파일의 독립적 관리 및 업데이트
 
 ## 🎓 시연 체크리스트
 

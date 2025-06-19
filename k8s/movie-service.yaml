@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: movie-service
-        image: movie-service:latest
+        image: harbor.27.96.156.180.nip.io/theater-msa/movie-service:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8082
