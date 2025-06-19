@@ -40,13 +40,13 @@ for SERVICE in "${SERVICES[@]}"; do
     # 이미지 태그 설정
     IMAGE_TAG="${HARBOR_REGISTRY}/${PROJECT_NAME}/${SERVICE}:latest"
     
-    # Docker 빌드
+    # Podman 빌드
     if [ -d "${SERVICE}" ]; then
         echo "  - 빌드: ${IMAGE_TAG}"
-        docker build -t ${IMAGE_TAG} ./${SERVICE}/
+        podman build -t ${IMAGE_TAG} ./${SERVICE}/
         
         echo "  - 푸시: ${IMAGE_TAG}"
-        docker push ${IMAGE_TAG}
+        podman push ${IMAGE_TAG}
         
         echo "  ✓ 완료: ${SERVICE}"
     else
