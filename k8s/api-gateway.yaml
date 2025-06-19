@@ -86,21 +86,25 @@ data:
     </head>
     <body>
         <div class="container">
-            <h1>Theater Management System</h1>
+            <h1>🎬 Theater Management System</h1>
+            <p class="subtitle">멀티클라우드 MSA 데모 애플리케이션</p>
+            
             <div class="section">
-                <h2>Users</h2>
-                <button onclick="loadUsers()">Load Users</button>
-                <div id="users"></div>
+                <h2>👥 사용자 목록</h2>
+                <button onclick="loadUsers()">새로고침</button>
+                <div id="users">로딩 중...</div>
             </div>
+            
             <div class="section">
-                <h2>Movies</h2>
-                <button onclick="loadMovies()">Load Movies</button>
-                <div id="movies"></div>
+                <h2>🎭 영화 목록</h2>
+                <button onclick="loadMovies()">새로고침</button>
+                <div id="movies">로딩 중...</div>
             </div>
+            
             <div class="section">
-                <h2>Bookings</h2>
-                <button onclick="loadBookings()">Load Bookings</button>
-                <div id="bookings"></div>
+                <h2>📋 예약 내역</h2>
+                <button onclick="loadBookings()">새로고침</button>
+                <div id="bookings">로딩 중...</div>
             </div>
         </div>
         <script src="script.js"></script>
@@ -108,61 +112,234 @@ data:
     </html>
   style.css: |
     body {
-        font-family: Arial, sans-serif;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         margin: 0;
         padding: 20px;
-        background-color: #f5f5f5;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
     }
     .container {
         max-width: 1200px;
         margin: 0 auto;
         background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    }
+    h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 10px;
+        font-size: 2.5em;
+    }
+    .subtitle {
+        text-align: center;
+        color: #666;
+        margin-bottom: 30px;
+        font-style: italic;
     }
     .section {
-        margin: 20px 0;
-        padding: 20px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
+        margin: 25px 0;
+        padding: 25px;
+        border: 2px solid #e9ecef;
+        border-radius: 8px;
+        background: #f8f9fa;
+    }
+    .section h2 {
+        margin-top: 0;
+        color: #495057;
+        border-bottom: 2px solid #dee2e6;
+        padding-bottom: 10px;
     }
     button {
         background: #007bff;
         color: white;
         border: none;
-        padding: 10px 20px;
-        border-radius: 4px;
+        padding: 12px 24px;
+        border-radius: 6px;
         cursor: pointer;
+        font-size: 14px;
+        margin: 5px;
+        transition: all 0.3s ease;
     }
     button:hover {
         background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .book-btn {
+        background: #28a745;
+        padding: 8px 16px;
+        font-size: 12px;
+        margin-top: 10px;
+    }
+    .book-btn:hover {
+        background: #218838;
+    }
+    .data-item {
+        background: white;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 6px;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .data-item strong {
+        color: #495057;
+        font-size: 1.1em;
     }
   script.js: |
+    // 초기 데이터 생성 및 로딩
+    window.onload = function() {
+        initializeData();
+        loadUsers();
+        loadMovies();
+        loadBookings();
+    };
+
+    async function initializeData() {
+        // 초기 사용자 데이터 생성
+        const users = [
+            { name: '김영희', email: 'kim@example.com' },
+            { name: '이철수', email: 'lee@example.com' },
+            { name: '박민수', email: 'park@example.com' }
+        ];
+
+        // 초기 영화 데이터 생성
+        const movies = [
+            { title: '어벤져스: 엔드게임', genre: '액션', year: 2019 },
+            { title: '기생충', genre: '드라마', year: 2019 },
+            { title: '탑건: 매버릭', genre: '액션', year: 2022 }
+        ];
+
+        // 사용자 데이터 초기화
+        for (const user of users) {
+            try {
+                await fetch('/users/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(user)
+                });
+            } catch (error) {
+                console.log('사용자 데이터 초기화 중 오류:', error);
+            }
+        }
+
+        // 영화 데이터 초기화
+        for (const movie of movies) {
+            try {
+                await fetch('/movies/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(movie)
+                });
+            } catch (error) {
+                console.log('영화 데이터 초기화 중 오류:', error);
+            }
+        }
+    }
+
     async function loadUsers() {
         try {
             const response = await fetch('/users/');
             const users = await response.json();
-            document.getElementById('users').innerHTML = JSON.stringify(users, null, 2);
+            displayUsers(users);
         } catch (error) {
-            document.getElementById('users').innerHTML = 'Error loading users';
+            document.getElementById('users').innerHTML = '<p style="color: red;">사용자 데이터 로딩 실패</p>';
         }
     }
+
     async function loadMovies() {
         try {
             const response = await fetch('/movies/');
             const movies = await response.json();
-            document.getElementById('movies').innerHTML = JSON.stringify(movies, null, 2);
+            displayMovies(movies);
         } catch (error) {
-            document.getElementById('movies').innerHTML = 'Error loading movies';
+            document.getElementById('movies').innerHTML = '<p style="color: red;">영화 데이터 로딩 실패</p>';
         }
     }
+
     async function loadBookings() {
         try {
             const response = await fetch('/bookings/');
             const bookings = await response.json();
-            document.getElementById('bookings').innerHTML = JSON.stringify(bookings, null, 2);
+            displayBookings(bookings);
         } catch (error) {
-            document.getElementById('bookings').innerHTML = 'Error loading bookings';
+            document.getElementById('bookings').innerHTML = '<p style="color: red;">예약 데이터 로딩 실패</p>';
+        }
+    }
+
+    function displayUsers(users) {
+        const userDiv = document.getElementById('users');
+        if (users && users.length > 0) {
+            userDiv.innerHTML = users.map(user => 
+                `<div class="data-item">
+                    <strong>${user.name}</strong><br>
+                    이메일: ${user.email}<br>
+                    ID: ${user.id || 'N/A'}
+                </div>`
+            ).join('');
+        } else {
+            userDiv.innerHTML = '<p>등록된 사용자가 없습니다.</p>';
+        }
+    }
+
+    function displayMovies(movies) {
+        const movieDiv = document.getElementById('movies');
+        if (movies && movies.length > 0) {
+            movieDiv.innerHTML = movies.map(movie => 
+                `<div class="data-item" data-movie-id="${movie.id}">
+                    <strong>${movie.title}</strong><br>
+                    장르: ${movie.genre}<br>
+                    년도: ${movie.year}<br>
+                    <button onclick="bookMovie('${movie.id}', '${movie.title}')" class="book-btn">예약하기</button>
+                </div>`
+            ).join('');
+        } else {
+            movieDiv.innerHTML = '<p>등록된 영화가 없습니다.</p>';
+        }
+    }
+
+    function displayBookings(bookings) {
+        const bookingDiv = document.getElementById('bookings');
+        if (bookings && bookings.length > 0) {
+            bookingDiv.innerHTML = bookings.map(booking => 
+                `<div class="data-item">
+                    예약 ID: ${booking.id || 'N/A'}<br>
+                    사용자 ID: ${booking.userId || 'N/A'}<br>
+                    영화 ID: ${booking.movieId || 'N/A'}<br>
+                    좌석 수: ${booking.seats || 'N/A'}<br>
+                    예약일: ${booking.bookingDate || 'N/A'}
+                </div>`
+            ).join('');
+        } else {
+            bookingDiv.innerHTML = '<p>예약 내역이 없습니다.</p>';
+        }
+    }
+
+    async function bookMovie(movieId, movieTitle) {
+        try {
+            // 간단한 예약 데이터 생성
+            const bookingData = {
+                userId: 'user-1', // 실제로는 로그인된 사용자 ID를 사용
+                movieId: movieId,
+                seats: Math.floor(Math.random() * 4) + 1, // 1-4석 랜덤
+                bookingDate: new Date().toISOString()
+            };
+
+            const response = await fetch('/bookings/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bookingData)
+            });
+
+            if (response.ok) {
+                alert(`"${movieTitle}" 영화 예약이 완료되었습니다!`);
+                loadBookings(); // 예약 목록 새로고침
+            } else {
+                alert('예약 처리 중 오류가 발생했습니다.');
+            }
+        } catch (error) {
+            alert('예약 요청 실패: ' + error.message);
         }
     }
