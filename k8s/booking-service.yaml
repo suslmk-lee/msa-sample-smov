@@ -42,7 +42,7 @@ spec:
               - key: cluster-name
                 operator: In
                 values:
-                - ctx1
+                - ctx2
 ---
 apiVersion: v1
 kind: Service

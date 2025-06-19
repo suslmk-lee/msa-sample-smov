@@ -109,8 +109,8 @@ kubectl label nodes <node-name> cluster-name=ctx2 --context=ctx2
 
 #### 4. 서비스 배포 제약사항
 - **고정 배포**: nodeAffinity로 서비스별 클러스터 고정 배포
-  - ctx1: User Service, Booking Service
-  - ctx2: Movie Service, API Gateway
+  - ctx1: User Service, API Gateway (cp-gateway 위치)
+  - ctx2: Movie Service, Booking Service
 - **Redis**: 두 클러스터 모두 배포 (preferredAffinity)
 - **네임스페이스**: 모든 리소스는 `theater-msa` 네임스페이스에 배포
 
@@ -304,7 +304,7 @@ for f in *.yaml.bak; do mv "$f" "${f%.bak}"; done
 
 ### 3. 클러스터별 서비스 배포
 
-#### ctx1 클러스터 (User + Booking Service)
+#### ctx1 클러스터 (User + API Gateway Service)
 ```bash
 # ctx1 클러스터 접속
 kubectl config use-context ctx1
@@ -313,12 +313,12 @@ kubectl config use-context ctx1
 kubectl apply -f namespace.yaml
 kubectl apply -f redis.yaml
 kubectl apply -f user-service.yaml
-kubectl apply -f booking-service.yaml
+kubectl apply -f api-gateway.yaml
 kubectl apply -f istio-virtualservice.yaml
 kubectl apply -f istio-destinationrule.yaml
 ```
 
-#### ctx2 클러스터 (Movie + API Gateway Service)  
+#### ctx2 클러스터 (Movie + Booking Service)  
 ```bash
 # ctx2 클러스터 접속
 kubectl config use-context ctx2
@@ -327,7 +327,7 @@ kubectl config use-context ctx2
 kubectl apply -f namespace.yaml
 kubectl apply -f redis.yaml
 kubectl apply -f movie-service.yaml
-kubectl apply -f api-gateway.yaml
+kubectl apply -f booking-service.yaml
 kubectl apply -f istio-virtualservice.yaml
 kubectl apply -f istio-destinationrule.yaml
 ```
@@ -493,7 +493,7 @@ kubectl rollout status deployment/user-service -n theater-msa
 
 ## 🌐 멀티클라우드 설정
 
-### ctx1 클러스터 설정 (User + Booking Service)
+### ctx1 클러스터 설정 (User + API Gateway Service)
 ```bash
 # ctx1 클러스터 접속
 kubectl config use-context ctx1
@@ -501,16 +501,16 @@ kubectl config use-context ctx1
 # 노드에 클러스터 라벨 추가
 kubectl label nodes <node-name> cluster-name=ctx1
 
-# ctx1에 배포될 서비스들
+# ctx1에 배포될 서비스들 (cp-gateway 위치)
 # - User Service (user-service.yaml)
-# - Booking Service (booking-service.yaml) 
+# - API Gateway (api-gateway.yaml) 
 # - Redis (shared, preferred)
 
 # 배포 확인
 kubectl get pods -n theater-msa -o wide
 ```
 
-### ctx2 클러스터 설정 (Movie + API Gateway Service)
+### ctx2 클러스터 설정 (Movie + Booking Service)
 ```bash
 # ctx2 클러스터 접속
 kubectl config use-context ctx2
@@ -520,7 +520,7 @@ kubectl label nodes <node-name> cluster-name=ctx2
 
 # ctx2에 배포될 서비스들
 # - Movie Service (movie-service.yaml)
-# - API Gateway (api-gateway.yaml)
+# - Booking Service (booking-service.yaml)
 # - Redis (shared, preferred)
 
 # 서비스 분산 배치 확인
@@ -673,8 +673,8 @@ kubectl delete namespace theater-msa
 ### 멀티클라우드 기능 확인 (EASTWESTGATEWAY)
 - [ ] ctx1, ctx2 클러스터 노드 라벨링 (`cluster-name=ctx1/ctx2`)
 - [ ] 클러스터별 서비스 분산 배치 확인
-  - [ ] ctx1: User Service, Booking Service
-  - [ ] ctx2: Movie Service, API Gateway  
+  - [ ] ctx1: User Service, API Gateway (cp-gateway 위치)
+  - [ ] ctx2: Movie Service, Booking Service  
 - [ ] EASTWESTGATEWAY를 통한 자동 클러스터 간 연결
 - [ ] 원격 클러스터 서비스 자동 디스커버리
 - [ ] 투명한 멀티클러스터 서비스 호출 확인 (ctx1→ctx2, ctx2→ctx1)
