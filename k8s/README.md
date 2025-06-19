@@ -65,7 +65,8 @@ k8s/
 ├── kustomization.yaml        # 통합 배포 설정
 ├── setup-domain.sh           # 도메인 설정 자동화 스크립트
 ├── build-images.sh           # Harbor 이미지 빌드 스크립트
-├── update-images.sh          # YAML 이미지 태그 업데이트 스크립트
+├── update-images.sh          # YAML 이미지 태그 업데이트 스크립트 (deprecated)
+├── update-deployment-images.sh # Deployment YAML 이미지 태그 일괄 변경 스크립트
 ├── setup-harbor.sh           # Harbor 설정 통합 스크립트
 └── README.md                # 이 파일
 ```
@@ -138,6 +139,7 @@ cd k8s/
 ./setup-harbor.sh 27.96.156.180.nip.io
 docker login harbor.27.96.156.180.nip.io
 ./build-images.sh 27.96.156.180.nip.io
+./update-deployment-images.sh 27.96.156.180.nip.io
 
 # 3. 도메인 설정
 ./setup-domain.sh -d "27.96.156.180.nip.io"
@@ -190,8 +192,8 @@ docker login harbor.27.96.156.180.nip.io
 # 2. 이미지 빌드 및 푸시
 ./build-images.sh
 
-# 3. YAML 파일 이미지 태그 업데이트 (선택사항)
-./update-images.sh
+# 3. Deployment YAML 이미지 태그 업데이트
+./update-deployment-images.sh
 ```
 
 ##### Harbor Registry 구성 확인
@@ -258,7 +260,10 @@ docker login harbor.${DOMAIN}
 # 2. 모든 서비스 이미지 빌드 및 푸시 (자동화)
 ./build-images.sh ${DOMAIN}
 
-# 3. 이미지 업로드 확인
+# 3. Deployment YAML 이미지 태그 업데이트
+./update-deployment-images.sh ${DOMAIN}
+
+# 4. 이미지 업로드 확인
 # Harbor UI에서 theater-msa 프로젝트 확인
 # 또는 CLI로 확인
 docker images | grep "harbor.${DOMAIN}"
@@ -283,6 +288,18 @@ docker push harbor.${DOMAIN}/theater-msa/api-gateway:latest
 
 # k8s 디렉토리로 돌아가기
 cd k8s/
+```
+
+#### Deployment YAML 이미지 태그 업데이트
+```bash
+# Harbor Registry 이미지 태그로 일괄 변경
+./update-deployment-images.sh 27.96.156.180.nip.io
+
+# 변경 확인
+grep "image:" *.yaml | grep -v "#"
+
+# 복원하려면 (필요시)
+for f in *.yaml.bak; do mv "$f" "${f%.bak}"; done
 ```
 
 ### 3. 클러스터별 서비스 배포
@@ -617,14 +634,21 @@ kubectl delete namespace theater-msa
 - **Service**: 서비스 디스커버리
 - **Ingress**: 외부 접근 관리
 
-### 3. Istio 서비스메시 개념
+### 3. Harbor Registry 및 이미지 관리
+- **컨테이너 이미지 저장소**: 프라이빗 레지스트리를 통한 이미지 중앙 관리
+- **자동화 스크립트**: build-images.sh로 일괄 이미지 빌드 및 푸시
+- **배포 자동화**: update-deployment-images.sh로 YAML 이미지 태그 일괄 변경
+- **백업 및 복원**: 안전한 설정 변경과 롤백 지원
+- **멀티 런타임 지원**: Docker와 Podman 자동 감지 및 사용
+
+### 4. Istio 서비스메시 개념
 - **사이드카 패턴**: Envoy 프록시를 통한 투명한 네트워크 관리
 - **트래픽 관리**: VirtualService, DestinationRule을 통한 세밀한 라우팅
 - **보안**: mTLS 자동 적용으로 서비스간 암호화 통신
 - **관측성**: 분산 추적, 메트릭, 로깅 자동 수집
 - **정책 관리**: 서킷브레이커, 타임아웃, 재시도 정책
 
-### 4. 멀티클라우드 서비스메시 (EASTWESTGATEWAY)
+### 5. 멀티클라우드 서비스메시 (EASTWESTGATEWAY)
 - **자동 서비스 디스커버리**: EASTWESTGATEWAY를 통한 클러스터 간 자동 연결
 - **투명한 통신**: 애플리케이션 코드 변경 없이 멀티클러스터 통신
 - **트래픽 분산**: 클라우드별 로드밸런싱 및 장애 조치

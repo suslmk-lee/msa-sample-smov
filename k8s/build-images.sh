@@ -74,14 +74,3 @@ for SERVICE in "${SERVICES[@]}"; do
 done
 
 echo "=== 빌드 완료 ==="
-echo "다음 명령어로 이미지 태그를 업데이트하세요:"
-echo ""
-echo "cd k8s/"
-for SERVICE in "${SERVICES[@]}"; do
-    echo "kubectl set image deployment/${SERVICE} ${SERVICE}=${HARBOR_REGISTRY}/${PROJECT_NAME}/${SERVICE}:latest -n theater-msa"
-done
-echo ""
-echo "또는 YAML 파일에서 이미지 태그를 직접 수정하세요:"
-for SERVICE in "${SERVICES[@]}"; do
-    echo "  image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/${SERVICE}:latest"
-done
