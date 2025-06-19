@@ -26,13 +26,17 @@ labels:
 
 images:
 - name: user-service
-  newTag: "v1.0.0"
+  newName: harbor.{{DOMAIN}}/theater-msa/user-service
+  newTag: "latest"
 - name: movie-service
-  newTag: "v1.0.0"
+  newName: harbor.{{DOMAIN}}/theater-msa/movie-service
+  newTag: "latest"
 - name: booking-service
-  newTag: "v1.0.0"
+  newName: harbor.{{DOMAIN}}/theater-msa/booking-service
+  newTag: "latest"
 - name: api-gateway
-  newTag: "v1.0.0"
+  newName: harbor.{{DOMAIN}}/theater-msa/api-gateway
+  newTag: "latest"
 
 replicas:
 - name: user-service
