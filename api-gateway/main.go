@@ -18,15 +18,7 @@ func newReverseProxy(target string) *httputil.ReverseProxy {
 
 func main() {
 	// UI Files
-	fs := http.FileServer(http.Dir("../ui"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			http.ServeFile(w, r, "../ui/index.html")
-			return
-		}
-		http.NotFound(w, r)
-	})
+	http.Handle("/", http.FileServer(http.Dir("ui")))
 
 	// User Service
 	userServiceProxy := newReverseProxy("http://user-service:8081")
