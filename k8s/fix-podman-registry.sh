@@ -23,45 +23,39 @@ fi
 echo "새로운 registries.conf 설정 적용 중..."
 sudo tee "$REGISTRIES_CONF" > /dev/null <<EOF
 # 기본 레지스트리 설정
+unqualified-search-registries = ["docker.io"]
+
+[[registry]]
+prefix = "docker.io"
+location = "docker.io"
+
 [registries.search]
-registries = ['docker.io', 'registry.fedoraproject.org', 'quay.io', 'registry.access.redhat.com', 'registry.centos.org']
+registries = ['docker.io']
 
 [registries.insecure]
 registries = []
 
 [registries.block]
 registries = []
-
-# docker.io 별칭 설정  
-[[registry]]
-prefix = "docker.io"
-location = "docker.io"
-
-[[registry.mirror]]
-location = "docker.io"
-
-# 단축명 해결
-unqualified-search-registries = ["docker.io"]
 EOF
 
 echo "✓ registries.conf 설정 완료"
 
-# shortnames.conf 확인
+# shortnames.conf 설정
 SHORTNAMES_CONF="/etc/containers/registries.conf.d/shortnames.conf"
-if [ ! -f "$SHORTNAMES_CONF" ]; then
-    echo "shortnames.conf 생성 중..."
-    sudo mkdir -p /etc/containers/registries.conf.d
-    sudo tee "$SHORTNAMES_CONF" > /dev/null <<EOF
+echo "shortnames.conf 설정 중..."
+sudo mkdir -p /etc/containers/registries.conf.d
+sudo tee "$SHORTNAMES_CONF" > /dev/null <<EOF
 # 공통 이미지 단축명 설정
 [aliases]
 "alpine" = "docker.io/library/alpine"
 "golang" = "docker.io/library/golang"
+"golang:1.21-alpine" = "docker.io/library/golang:1.21-alpine"
 "redis" = "docker.io/library/redis"
 "nginx" = "docker.io/library/nginx"
 "ubuntu" = "docker.io/library/ubuntu"
 EOF
-    echo "✓ shortnames.conf 설정 완료"
-fi
+echo "✓ shortnames.conf 설정 완료"
 
 echo ""
 echo "=== 설정 완료 ==="

@@ -40,18 +40,25 @@ for SERVICE in "${SERVICES[@]}"; do
     # 이미지 태그 설정
     IMAGE_TAG="${HARBOR_REGISTRY}/${PROJECT_NAME}/${SERVICE}:latest"
     
+    # 서비스 디렉토리 경로 설정
+    if [ "${SERVICE}" = "api-gateway" ]; then
+        SERVICE_DIR="./${SERVICE}"
+    else
+        SERVICE_DIR="./services/${SERVICE}"
+    fi
+    
     # 컨테이너 런타임 자동 감지 및 빌드
-    if [ -d "${SERVICE}" ]; then
+    if [ -d "${SERVICE_DIR}" ]; then
         echo "  - 빌드: ${IMAGE_TAG}"
         
         # 컨테이너 런타임 확인 (docker 또는 podman)
         if command -v docker >/dev/null 2>&1; then
-            docker build -t ${IMAGE_TAG} ./${SERVICE}/
+            docker build -t ${IMAGE_TAG} ${SERVICE_DIR}/
             echo "  - 푸시: ${IMAGE_TAG}"
             docker push ${IMAGE_TAG}
         elif command -v podman >/dev/null 2>&1; then
             # Podman에서 docker.io 레지스트리 명시적 사용
-            podman build --format docker -t ${IMAGE_TAG} ./${SERVICE}/
+            podman build --format docker -t ${IMAGE_TAG} ${SERVICE_DIR}/
             echo "  - 푸시: ${IMAGE_TAG}"
             podman push ${IMAGE_TAG}
         else
@@ -61,7 +68,7 @@ for SERVICE in "${SERVICES[@]}"; do
         
         echo "  ✓ 완료: ${SERVICE}"
     else
-        echo "  ⚠ 경고: ${SERVICE} 디렉토리를 찾을 수 없습니다"
+        echo "  ⚠ 경고: ${SERVICE_DIR} 디렉토리를 찾을 수 없습니다"
     fi
     echo ""
 done
