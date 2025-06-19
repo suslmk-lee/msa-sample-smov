@@ -11,7 +11,18 @@
       "Bash(open:*)",
       "Bash(go run:*)",
       "Bash(ls:*)",
-      "Bash(/Applications/Docker.app/Contents/MacOS/Docker --status)"
+      "Bash(/Applications/Docker.app/Contents/MacOS/Docker --status)",
+      "Bash(kubectl get pods:*)",
+      "Bash(kubectl get svc:*)",
+      "Bash(kubectl config:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(cp:*)",
+      "Bash(go mod:*)",
+      "Bash(podman push:*)",
+      "Bash(kubectl rollout restart:*)",
+      "Bash(kubectl get:*)",
+      "Bash(kubectl exec:*)",
+      "Bash(kubectl delete pods:*)"
     ],
     "deny": []
   }

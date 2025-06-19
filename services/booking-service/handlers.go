@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 
@@ -12,8 +13,10 @@ func bookingsHandler(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/")
 	// Remove "bookings/" prefix if present (from API Gateway routing)
 	path = strings.TrimPrefix(path, "bookings/")
-	parts := strings.Split(path, "/")
 	w.Header().Set("Content-Type", "application/json")
+	
+	// Debug logging
+	log.Printf("Request: %s %s, processed path: '%s'", r.Method, r.URL.Path, path)
 
 	switch r.Method {
 	case http.MethodPost:
@@ -25,8 +28,13 @@ func bookingsHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		if path == "" {
 			getAllBookingsHandler(w, r)
-		} else if len(parts) == 2 && parts[0] == "user" {
-			getUserBookingsHandler(w, r, parts[1])
+		} else if strings.HasPrefix(path, "user/") {
+			userID := strings.TrimPrefix(path, "user/")
+			if userID != "" {
+				getUserBookingsHandler(w, r, userID)
+			} else {
+				http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			}
 		} else {
 			http.Error(w, "Invalid path for GET", http.StatusBadRequest)
 		}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -9,18 +10,40 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
-// DeploymentInfo represents service deployment information
+// DeploymentInfo represents service deployment information for Kubernetes
 type DeploymentInfo struct {
 	Service     string `json:"service"`
-	Platform    string `json:"platform"`
-	Environment string `json:"environment"`
-	ContainerID string `json:"containerID"`
+	Cluster     string `json:"cluster"`
+	Namespace   string `json:"namespace"`
+	PodName     string `json:"podName"`
+	NodeName    string `json:"nodeName"`
 	Status      string `json:"status"`
 	Port        string `json:"port"`
 	Icon        string `json:"icon"`
 	LastChecked string `json:"lastChecked"`
+}
+
+var kubernetesClient *kubernetes.Clientset
+
+func init() {
+	// Kubernetes 클라이언트 초기화
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		log.Printf("Failed to get in-cluster config: %v", err)
+		return
+	}
+
+	kubernetesClient, err = kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Printf("Failed to create Kubernetes client: %v", err)
+		return
+	}
 }
 
 // newReverseProxy creates a new reverse proxy for the target URL.
@@ -76,7 +99,7 @@ func deploymentStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// 실제 서비스 상태 체크
-	deploymentInfo := checkDeploymentStatus()
+	deploymentInfo := checkKubernetesDeploymentStatus()
 	
 	if err := json.NewEncoder(w).Encode(deploymentInfo); err != nil {
 		log.Printf("Failed to encode deployment status: %v", err)
@@ -84,33 +107,45 @@ func deploymentStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// checkDeploymentStatus checks the actual status of services in Docker Compose
-func checkDeploymentStatus() []DeploymentInfo {
+// checkKubernetesDeploymentStatus checks the actual status of services in Kubernetes
+func checkKubernetesDeploymentStatus() []DeploymentInfo {
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
 	
 	services := []struct {
-		name string
-		url  string
-		port string
-		icon string
+		name      string
+		url       string
+		port      string
+		icon      string
+		labelApp  string
 	}{
-		{"API Gateway", "http://localhost:8080", "8080", "🌐"},
-		{"User Service", "http://user-service:8081", "8081", "👥"},
-		{"Movie Service", "http://movie-service:8082", "8082", "🎭"},
-		{"Booking Service", "http://booking-service:8083", "8083", "📋"},
-		{"Redis Cache", "redis:6379", "6379", "💾"},
+		{"API Gateway", "http://api-gateway:8080", "8080", "🌐", "api-gateway"},
+		{"User Service", "http://user-service:8081", "8081", "👥", "user-service"},
+		{"Movie Service", "http://movie-service:8082", "8082", "🎭", "movie-service"},
+		{"Booking Service", "http://booking-service:8083", "8083", "📋", "booking-service"},
+		{"Redis Cache", "redis:6379", "6379", "💾", "redis"},
 	}
 	
 	var deploymentInfo []DeploymentInfo
+	namespace := getNamespace()
+	clusterName := getClusterName()
 	
 	for _, service := range services {
 		status := "운영중"
-		containerID := ""
-		environment := "Docker Compose"
-		platform := "Local Development"
+		podName := ""
+		nodeName := ""
 		
-		// 컨테이너 정보 수집
-		containerID = getContainerInfo(service.name)
+		// Kubernetes에서 Pod 정보 수집
+		if kubernetesClient != nil {
+			if podInfo := getKubernetesPodInfo(namespace, service.labelApp); podInfo != nil {
+				podName = podInfo.PodName
+				nodeName = podInfo.NodeName
+				if podInfo.Status != "Running" {
+					status = "오류"
+				}
+			} else {
+				status = "오류"
+			}
+		}
 		
 		// 헬스체크
 		if status == "운영중" && !isServiceHealthy(service.url, service.name) {
@@ -119,9 +154,10 @@ func checkDeploymentStatus() []DeploymentInfo {
 		
 		deploymentInfo = append(deploymentInfo, DeploymentInfo{
 			Service:     service.name,
-			Platform:    platform,
-			Environment: environment,
-			ContainerID: containerID,
+			Cluster:     clusterName,
+			Namespace:   namespace,
+			PodName:     podName,
+			NodeName:    nodeName,
 			Status:      status,
 			Port:        service.port,
 			Icon:        service.icon,
@@ -132,36 +168,73 @@ func checkDeploymentStatus() []DeploymentInfo {
 	return deploymentInfo
 }
 
-// getContainerInfo retrieves container information from environment
-func getContainerInfo(serviceName string) string {
-	// 현재 컨테이너의 호스트명 사용 (Docker Compose에서 자동 설정)
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Printf("Failed to get hostname for %s: %v", serviceName, err)
-		return "unknown"
-	}
-	
-	// API Gateway인 경우 현재 컨테이너 정보 반환
-	if serviceName == "API Gateway" {
-		return hostname[:min(len(hostname), 8)]
-	}
-	
-	// 다른 서비스들은 서비스명 기반으로 생성
-	return strings.ToLower(strings.ReplaceAll(serviceName, " ", "-"))
+type PodInfo struct {
+	PodName  string
+	NodeName string
+	Status   string
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
+// getKubernetesPodInfo retrieves pod information from Kubernetes API
+func getKubernetesPodInfo(namespace, labelApp string) *PodInfo {
+	if kubernetesClient == nil {
+		return nil
 	}
-	return b
+	
+	pods, err := kubernetesClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: "app=" + labelApp,
+	})
+	
+	if err != nil {
+		log.Printf("Failed to get pods for %s: %v", labelApp, err)
+		return nil
+	}
+	
+	if len(pods.Items) == 0 {
+		return nil
+	}
+	
+	pod := pods.Items[0] // 첫 번째 Pod 사용
+	return &PodInfo{
+		PodName:  pod.Name,
+		NodeName: pod.Spec.NodeName,
+		Status:   string(pod.Status.Phase),
+	}
+}
+
+// getNamespace returns the current namespace
+func getNamespace() string {
+	if ns := os.Getenv("POD_NAMESPACE"); ns != "" {
+		return ns
+	}
+	return "theater-msa"
+}
+
+// getClusterName returns the cluster name from environment or node labels
+func getClusterName() string {
+	if cluster := os.Getenv("CLUSTER_NAME"); cluster != "" {
+		return cluster
+	}
+	
+	// 현재 Pod의 노드에서 클러스터 정보 추출
+	if kubernetesClient != nil {
+		if nodeName := os.Getenv("NODE_NAME"); nodeName != "" {
+			node, err := kubernetesClient.CoreV1().Nodes().Get(context.TODO(), nodeName, metav1.GetOptions{})
+			if err == nil {
+				if clusterName, exists := node.Labels["cluster-name"]; exists {
+					return clusterName
+				}
+			}
+		}
+	}
+	
+	return "Unknown Cluster"
 }
 
 // isServiceHealthy performs a simple health check
 func isServiceHealthy(serviceURL, serviceName string) bool {
 	// Redis는 다른 프로토콜이므로 스킵
 	if serviceName == "Redis Cache" {
-		return true // Redis 연결은 다른 서비스들이 사용 중이면 정상으로 간주
+		return true
 	}
 	
 	client := &http.Client{

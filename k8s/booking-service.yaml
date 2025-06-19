@@ -20,7 +20,7 @@ spec:
       containers:
       - name: booking-service
         image: harbor.27.96.156.180.nip.io/theater-msa/booking-service:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 8083
         envFrom:
