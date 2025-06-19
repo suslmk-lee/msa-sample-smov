@@ -10,12 +10,24 @@ import (
 )
 
 func usersHandler(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	// Remove "users/" prefix if present (from API Gateway routing)
+	path = strings.TrimPrefix(path, "users/")
 	w.Header().Set("Content-Type", "application/json")
+	
 	switch r.Method {
 	case http.MethodPost:
-		createUserHandler(w, r)
+		if path == "" {
+			createUserHandler(w, r)
+		} else {
+			http.Error(w, "Invalid path for POST", http.StatusBadRequest)
+		}
 	case http.MethodGet:
-		getUserHandler(w, r)
+		if path == "" {
+			getAllUsersHandler(w, r)
+		} else {
+			getUserHandler(w, r, path)
+		}
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -39,22 +51,17 @@ func createUserHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
-func getUserHandler(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/")
-	
-	// GET /users/ - 모든 사용자 목록 반환
-	if path == "" || path == "users/" {
-		users, err := getAllUsers()
-		if err != nil {
-			http.Error(w, "Failed to get users", http.StatusInternalServerError)
-			return
-		}
-		json.NewEncoder(w).Encode(users)
+func getAllUsersHandler(w http.ResponseWriter, r *http.Request) {
+	users, err := getAllUsers()
+	if err != nil {
+		http.Error(w, "Failed to get users", http.StatusInternalServerError)
 		return
 	}
-	
-	// GET /users/{id} - 특정 사용자 반환
-	user, err := findUserByID(path)
+	json.NewEncoder(w).Encode(users)
+}
+
+func getUserHandler(w http.ResponseWriter, r *http.Request, userID string) {
+	user, err := findUserByID(userID)
 	if err == redis.Nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return

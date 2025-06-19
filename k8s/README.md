@@ -131,6 +131,8 @@ kubectl label nodes <node-name> cluster-name=ctx2 --context=ctx2
 ### 1. 사전 준비
 
 #### Harbor Registry 설정 (이미지 저장소)
+Harbor에 repo 설정 
+  /theater-msa 생성
 
 #### 도메인 설정
 
