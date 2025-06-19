@@ -22,7 +22,8 @@
       "Bash(kubectl rollout restart:*)",
       "Bash(kubectl get:*)",
       "Bash(kubectl exec:*)",
-      "Bash(kubectl delete pods:*)"
+      "Bash(kubectl delete pods:*)",
+      "Bash(kubectl describe:*)"
     ],
     "deny": []
   }

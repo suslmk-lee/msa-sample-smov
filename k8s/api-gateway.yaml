@@ -21,7 +21,7 @@ spec:
       containers:
       - name: api-gateway
         image: harbor.27.96.156.180.nip.io/theater-msa/api-gateway:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
         env:

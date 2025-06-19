@@ -23,9 +23,14 @@ fi
 HARBOR_REGISTRY="harbor.${DOMAIN}"
 PROJECT_NAME="theater-msa"
 
+# 현재 시간을 태그로 사용 (이미지 캐시 문제 해결)
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+IMAGE_TAG="v${TIMESTAMP}"
+
 echo "=== Harbor Registry 이미지 빌드 시작 ==="
 echo "Registry: ${HARBOR_REGISTRY}/${PROJECT_NAME}"
 echo "Domain: ${DOMAIN}"
+echo "Image Tag: ${IMAGE_TAG}"
 echo ""
 
 # 상위 디렉토리로 이동 (소스 코드가 있는 위치)
@@ -37,8 +42,9 @@ SERVICES=("api-gateway" "user-service" "movie-service" "booking-service")
 for SERVICE in "${SERVICES[@]}"; do
     echo ">>> 빌드 중: ${SERVICE}"
     
-    # 이미지 태그 설정
-    IMAGE_TAG="${HARBOR_REGISTRY}/${PROJECT_NAME}/${SERVICE}:latest"
+    # 이미지 태그 설정 (타임스탬프와 latest 모두 생성)
+    IMAGE_TAG_TIMESTAMP="${HARBOR_REGISTRY}/${PROJECT_NAME}/${SERVICE}:${IMAGE_TAG}"
+    IMAGE_TAG_LATEST="${HARBOR_REGISTRY}/${PROJECT_NAME}/${SERVICE}:latest"
     
     # 서비스 디렉토리 경로 설정
     if [ "${SERVICE}" = "api-gateway" ]; then
@@ -49,18 +55,22 @@ for SERVICE in "${SERVICES[@]}"; do
     
     # 컨테이너 런타임 자동 감지 및 빌드
     if [ -d "${SERVICE_DIR}" ]; then
-        echo "  - 빌드: ${IMAGE_TAG}"
+        echo "  - 빌드: ${IMAGE_TAG_TIMESTAMP} and ${IMAGE_TAG_LATEST}"
         
         # 컨테이너 런타임 확인 (docker 또는 podman)
         if command -v docker >/dev/null 2>&1; then
-            docker build -t ${IMAGE_TAG} ${SERVICE_DIR}/
-            echo "  - 푸시: ${IMAGE_TAG}"
-            docker push ${IMAGE_TAG}
+            docker build -t ${IMAGE_TAG_TIMESTAMP} -t ${IMAGE_TAG_LATEST} ${SERVICE_DIR}/
+            echo "  - 푸시: ${IMAGE_TAG_TIMESTAMP}"
+            docker push ${IMAGE_TAG_TIMESTAMP}
+            echo "  - 푸시: ${IMAGE_TAG_LATEST}"
+            docker push ${IMAGE_TAG_LATEST}
         elif command -v podman >/dev/null 2>&1; then
             # Podman에서 docker.io 레지스트리 명시적 사용
-            podman build --format docker -t ${IMAGE_TAG} ${SERVICE_DIR}/
-            echo "  - 푸시: ${IMAGE_TAG}"
-            podman push ${IMAGE_TAG}
+            podman build --format docker -t ${IMAGE_TAG_TIMESTAMP} -t ${IMAGE_TAG_LATEST} ${SERVICE_DIR}/
+            echo "  - 푸시: ${IMAGE_TAG_TIMESTAMP}"
+            podman push ${IMAGE_TAG_TIMESTAMP}
+            echo "  - 푸시: ${IMAGE_TAG_LATEST}"
+            podman push ${IMAGE_TAG_LATEST}
         else
             echo "  ❌ 오류: Docker 또는 Podman이 설치되지 않았습니다"
             exit 1
@@ -74,3 +84,14 @@ for SERVICE in "${SERVICES[@]}"; do
 done
 
 echo "=== 빌드 완료 ==="
+echo ""
+echo "📝 생성된 이미지 태그: ${IMAGE_TAG}"
+echo ""
+echo "📝 배포 업데이트를 위해 다음 명령어를 실행하세요:"
+echo "kubectl config use-context ctx1"
+echo "kubectl patch deployment user-service -n theater-msa -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"user-service\",\"image\":\"harbor.${DOMAIN}/theater-msa/user-service:${IMAGE_TAG}\"}]}}}}'"
+echo "kubectl patch deployment api-gateway -n theater-msa -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"api-gateway\",\"image\":\"harbor.${DOMAIN}/theater-msa/api-gateway:${IMAGE_TAG}\"}]}}}}'"
+echo ""
+echo "kubectl config use-context ctx2"
+echo "kubectl patch deployment movie-service -n theater-msa -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"movie-service\",\"image\":\"harbor.${DOMAIN}/theater-msa/movie-service:${IMAGE_TAG}\"}]}}}}'"
+echo "kubectl patch deployment booking-service -n theater-msa -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"booking-service\",\"image\":\"harbor.${DOMAIN}/theater-msa/booking-service:${IMAGE_TAG}\"}]}}}}'"
