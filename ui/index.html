@@ -1,53 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Theater Booking System</title>
+    <title>Theater MSA</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Theater Booking System</h1>
-
     <div class="container">
-        <h2>Create User</h2>
-        <form id="user-form">
-            <input type="text" id="user-name" placeholder="Name" required>
-            <input type="email" id="user-email" placeholder="Email" required>
-            <button type="submit">Create User</button>
-        </form>
-        <div id="user-info"></div>
-    </div>
-
-    <div class="container">
-        <h2>Movie List</h2>
-        <ul id="movie-list"></ul>
-    </div>
-
-    <div class="container">
-        <h2>My Bookings</h2>
-        <form id="view-bookings-form">
-            <input type="text" id="view-user-id" placeholder="Enter Your User ID to see bookings" required>
-            <button type="submit">View My Bookings</button>
-        </form>
-        <ul id="booking-list"></ul>
-    </div>
-
-    <!-- Booking Modal -->
-    <div id="booking-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-button">&times;</span>
-            <h2 id="booking-movie-title"></h2>
-            <form id="booking-form">
-                <input type="hidden" id="booking-movie-id">
-                <input type="text" id="booking-user-id" placeholder="Your User ID" required>
-                <input type="text" id="booking-seats" placeholder="Seats (e.g., A1,A2)" required>
-                <button type="submit">Confirm Booking</button>
-            </form>
-            <div id="booking-result"></div>
+        <h1>🎬 Theater Management System</h1>
+        <p class="subtitle">멀티클라우드 MSA 데모 애플리케이션</p>
+        
+        <div class="data-sections">
+            <div class="data-section">
+                <h2>👥 사용자 목록</h2>
+                <button onclick="loadUsers()">새로고침</button>
+                <div id="users">로딩 중...</div>
+            </div>
+            
+            <div class="data-section">
+                <h2>🎭 영화 목록</h2>
+                <button onclick="loadMovies()">새로고침</button>
+                <div id="movies">로딩 중...</div>
+            </div>
+            
+            <div class="data-section">
+                <h2>📋 예약 내역</h2>
+                <button onclick="loadBookings()">새로고침</button>
+                <div id="bookings">로딩 중...</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>☁️ 멀티클라우드 배포 상태</h2>
+            <button onclick="loadDeploymentStatus()">상태 확인</button>
+            <div id="deployment-status">로딩 중...</div>
         </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>

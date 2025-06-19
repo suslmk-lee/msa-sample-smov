@@ -40,8 +40,21 @@ func createUserHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getUserHandler(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/")
-	user, err := findUserByID(id)
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	
+	// GET /users/ - 모든 사용자 목록 반환
+	if path == "" || path == "users/" {
+		users, err := getAllUsers()
+		if err != nil {
+			http.Error(w, "Failed to get users", http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(users)
+		return
+	}
+	
+	// GET /users/{id} - 특정 사용자 반환
+	user, err := findUserByID(path)
 	if err == redis.Nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return

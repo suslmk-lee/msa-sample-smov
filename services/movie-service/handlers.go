@@ -11,7 +11,9 @@ import (
 )
 
 func moviesHandler(w http.ResponseWriter, r *http.Request) {
-	path := strings.Trim(r.URL.Path, "/")
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	// Remove "movies/" prefix if present (from API Gateway routing)
+	path = strings.TrimPrefix(path, "movies/")
 	w.Header().Set("Content-Type", "application/json")
 
 	switch r.Method {

@@ -80,3 +80,35 @@ func findUserBookings(userID string) ([]Booking, error) {
 
 	return bookings, nil
 }
+
+func findAllBookings() ([]Booking, error) {
+	keys, err := rdb.Keys(ctx, "booking:*").Result()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(keys) == 0 {
+		return []Booking{}, nil
+	}
+
+	bookingsData, err := rdb.MGet(ctx, keys...).Result()
+	if err != nil {
+		log.Printf("Failed to get all bookings: %v", err)
+		return nil, err
+	}
+
+	bookings := make([]Booking, 0, len(bookingsData))
+	for _, bookingJSON := range bookingsData {
+		if bookingJSON == nil {
+			continue
+		}
+		var booking Booking
+		if err := json.Unmarshal([]byte(bookingJSON.(string)), &booking); err != nil {
+			log.Printf("Failed to unmarshal booking data: %v", err)
+			continue
+		}
+		bookings = append(bookings, booking)
+	}
+
+	return bookings, nil
+}

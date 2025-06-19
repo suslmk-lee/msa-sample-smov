@@ -9,7 +9,9 @@ import (
 )
 
 func bookingsHandler(w http.ResponseWriter, r *http.Request) {
-	path := strings.Trim(r.URL.Path, "/")
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	// Remove "bookings/" prefix if present (from API Gateway routing)
+	path = strings.TrimPrefix(path, "bookings/")
 	parts := strings.Split(path, "/")
 	w.Header().Set("Content-Type", "application/json")
 
@@ -21,7 +23,9 @@ func bookingsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid path for POST", http.StatusBadRequest)
 		}
 	case http.MethodGet:
-		if len(parts) == 2 && parts[0] == "user" {
+		if path == "" {
+			getAllBookingsHandler(w, r)
+		} else if len(parts) == 2 && parts[0] == "user" {
 			getUserBookingsHandler(w, r, parts[1])
 		} else {
 			http.Error(w, "Invalid path for GET", http.StatusBadRequest)
@@ -47,6 +51,17 @@ func createBookingHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(booking)
+}
+
+func getAllBookingsHandler(w http.ResponseWriter, r *http.Request) {
+	bookings, err := findAllBookings()
+	if err != nil {
+		http.Error(w, "Failed to retrieve bookings", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(bookings)
 }
 
 func getUserBookingsHandler(w http.ResponseWriter, r *http.Request, userID string) {
