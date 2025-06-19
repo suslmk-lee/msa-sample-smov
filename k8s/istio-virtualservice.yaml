@@ -13,11 +13,7 @@ spec:
   http:
   - match:
     - uri:
-        regex: /users(/|$)(.*)
-    rewrite:
-      uriRegexRewrite:
-        match: /users(/|$)(.*)
-        rewrite: /\2
+        prefix: /users
     route:
     - destination:
         host: user-service.theater-msa.svc.cluster.local
@@ -30,11 +26,7 @@ spec:
         fixedDelay: 1s
   - match:
     - uri:
-        regex: /movies(/|$)(.*)
-    rewrite:
-      uriRegexRewrite:
-        match: /movies(/|$)(.*)
-        rewrite: /\2
+        prefix: /movies
     route:
     - destination:
         host: movie-service.theater-msa.svc.cluster.local
@@ -45,16 +37,20 @@ spec:
       perTryTimeout: 2s
   - match:
     - uri:
-        regex: /bookings(/|$)(.*)
-    rewrite:
-      uriRegexRewrite:
-        match: /bookings(/|$)(.*)
-        rewrite: /\2
+        prefix: /bookings
     route:
     - destination:
         host: booking-service.theater-msa.svc.cluster.local
         port:
           number: 8083
+  - match:
+    - uri:
+        prefix: /deployment-status
+    route:
+    - destination:
+        host: api-gateway.theater-msa.svc.cluster.local
+        port:
+          number: 8080
   - match:
     - uri:
         prefix: /
