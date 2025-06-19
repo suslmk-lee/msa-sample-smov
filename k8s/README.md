@@ -58,8 +58,7 @@ k8s/
 ├── booking-service.yaml       # 예약 서비스
 ├── api-gateway.yaml           # API 게이트웨이 (Kubernetes API 권한 포함)
 ├── rbac.yaml                  # API Gateway용 서비스 계정 및 권한 설정
-├── ui-configmap.yaml          # UI 파일 (HTML, CSS) ConfigMap
-├── ui-script-configmap.yaml   # UI JavaScript ConfigMap
+├── ui-configmap.yaml          # UI 파일 (HTML, CSS, JavaScript) 통합 ConfigMap
 ├── ingress.yaml               # 기존 Ingress (참고용)
 ├── istio-gateway.yaml         # Istio Gateway (cp-gateway 사용)
 ├── istio-virtualservice.yaml  # Istio VirtualService (라우팅, 도메인 템플릿)
@@ -159,7 +158,7 @@ kubectl cluster-info
 #### Harbor Registry에 이미지 업로드
 ```bash
 # 1. Harbor 로그인 (사전에 Harbor 계정 필요)
-docker login harbor.${DOMAIN}
+podman login harbor.${DOMAIN}
 
 # 2. 모든 서비스 이미지 빌드 및 푸시 (자동화)
 ./build-images.sh ${DOMAIN}
@@ -204,7 +203,6 @@ kubectl config use-context ctx1
 kubectl apply -f namespace.yaml
 kubectl apply -f rbac.yaml
 kubectl apply -f ui-configmap.yaml
-kubectl apply -f ui-script-configmap.yaml
 kubectl apply -f redis.yaml
 kubectl apply -f user-service.yaml
 kubectl apply -f api-gateway.yaml
