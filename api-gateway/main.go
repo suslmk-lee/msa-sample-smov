@@ -4,8 +4,17 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
+	"net/url" // newReverseProxy에서 사용됨
 )
+
+// newReverseProxy creates a new reverse proxy for the target URL.
+func newReverseProxy(target string) *httputil.ReverseProxy {
+	targetURL, err := url.Parse(target)
+	if err != nil {
+		log.Fatalf("Failed to parse target URL %s: %v", target, err)
+	}
+	return httputil.NewSingleHostReverseProxy(targetURL)
+}
 
 func main() {
 	// UI Files
@@ -30,11 +39,6 @@ func main() {
 	// Booking Service
 	bookingServiceProxy := newReverseProxy("http://booking-service:8083")
 	http.Handle("/bookings/", http.StripPrefix("/bookings/", bookingServiceProxy))
-	if err != nil {
-		log.Fatalf("Failed to parse booking service URL: %v", err)
-	}
-	bookingProxy := httputil.NewSingleHostReverseProxy(bookingURL)
-	http.Handle("/bookings/", http.StripPrefix("/bookings/", bookingProxy))
 
 	log.Println("API Gateway started on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
