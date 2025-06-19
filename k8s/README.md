@@ -60,14 +60,10 @@ k8s/
 ├── ingress.yaml               # 기존 Ingress (참고용)
 ├── istio-gateway.yaml         # Istio Gateway (cp-gateway 사용)
 ├── istio-virtualservice.yaml  # Istio VirtualService (라우팅, 도메인 템플릿)
-├── istio-destinationrule.yaml # Istio DestinationRule (정책)
 ├── deploy.yaml               # 배포 권한 설정
 ├── kustomization.yaml        # 통합 배포 설정
-├── setup-domain.sh           # 도메인 설정 자동화 스크립트
 ├── build-images.sh           # Harbor 이미지 빌드 스크립트
-├── update-images.sh          # YAML 이미지 태그 업데이트 스크립트 (deprecated)
 ├── update-deployment-images.sh # Deployment YAML 이미지 태그 일괄 변경 스크립트
-├── setup-harbor.sh           # Harbor 설정 통합 스크립트
 └── README.md                # 이 파일
 ```
 
@@ -128,113 +124,18 @@ kubectl label nodes <node-name> cluster-name=ctx2 --context=ctx2
 - nodes: get, list, patch (라벨링용)
 ```
 
-## ⚡ 빠른 시작 (Quick Start)
-
-### 전체 과정 요약
-```bash
-# 1. k8s 디렉토리로 이동
-cd k8s/
-
-# 2. Harbor 설정 및 이미지 빌드
-./setup-harbor.sh 27.96.156.180.nip.io
-docker login harbor.27.96.156.180.nip.io
-./build-images.sh 27.96.156.180.nip.io
-./update-deployment-images.sh 27.96.156.180.nip.io
-
-# 3. 도메인 설정
-./setup-domain.sh -d "27.96.156.180.nip.io"
-
-# 4. ctx1 클러스터 배포
-kubectl config use-context ctx1
-kubectl apply -k .
-
-# 5. ctx2 클러스터 배포  
-kubectl config use-context ctx2
-kubectl apply -k .
-
-# 6. 접근 확인
-curl http://theater.27.96.156.180.nip.io
-```
-
-### Harbor Registry 사전 준비사항
-1. **Harbor 프로젝트 생성**: Harbor UI에서 `theater-msa` 프로젝트 생성
-2. **Harbor 계정**: 이미지 푸시 권한을 가진 계정 필요
-3. **Docker 로그인**: `docker login harbor.${DOMAIN}` 성공 확인
-
----
-
 ## 🚀 배포 방법 (상세)
 
 ### 1. 사전 준비
 
 #### Harbor Registry 설정 (이미지 저장소)
 
-##### 방법 1: 통합 스크립트 사용 (권장)
-```bash
-# k8s 디렉토리에서 실행
-cd k8s/
-
-# Harbor 설정 (도메인 자동 설정 + 이미지 빌드 안내)
-./setup-harbor.sh 27.96.156.180.nip.io
-
-# Harbor 로그인
-docker login harbor.27.96.156.180.nip.io
-
-# 이미지 빌드 및 푸시
-./build-images.sh 27.96.156.180.nip.io
-```
-
-##### 방법 2: 개별 스크립트 사용
-```bash
-# 1. Harbor Registry 설정
-./setup-harbor.sh
-
-# 2. 이미지 빌드 및 푸시
-./build-images.sh
-
-# 3. Deployment YAML 이미지 태그 업데이트
-./update-deployment-images.sh
-```
-
-##### Harbor Registry 구성 확인
-```bash
-# Harbor 프로젝트 확인
-# Harbor UI에서 theater-msa 프로젝트 생성 또는 확인
-
-# 이미지 푸시 확인
-docker images | grep harbor
-```
-
 #### 도메인 설정
 
-##### 방법 1: 자동 설정 스크립트 사용 (권장)
-```bash
-# k8s 디렉토리에서 실행
-cd k8s/
-
-# 대화형 모드로 도메인 설정
-./setup-domain.sh
-
-# 또는 도메인 직접 지정
-./setup-domain.sh -d "27.96.156.180.nip.io"
-
-# 설정 복원 (필요시)
-./setup-domain.sh --restore
-```
-
 ##### 방법 2: 수동 설정
+
 ```bash
-# 환경별 도메인 설정 (예시)
-# NaverCloud + NHN Cloud 환경
 export DOMAIN="27.96.156.180.nip.io"
-
-# 다른 환경 예시
-export DOMAIN="192.168.1.100.nip.io"
-export DOMAIN="example.com"
-export DOMAIN="k8s.local"
-
-# VirtualService 파일에서 템플릿 치환
-sed -i "s/{{DOMAIN}}/$DOMAIN/g" istio-virtualservice.yaml
 ```
 
 #### 클러스터 연결 확인
@@ -260,13 +161,6 @@ docker login harbor.${DOMAIN}
 # 2. 모든 서비스 이미지 빌드 및 푸시 (자동화)
 ./build-images.sh ${DOMAIN}
 
-# 3. Deployment YAML 이미지 태그 업데이트
-./update-deployment-images.sh ${DOMAIN}
-
-# 4. 이미지 업로드 확인
-# Harbor UI에서 theater-msa 프로젝트 확인
-# 또는 CLI로 확인
-docker images | grep "harbor.${DOMAIN}"
 ```
 
 #### 개별 이미지 빌드 (수동)
@@ -293,13 +187,7 @@ cd k8s/
 #### Deployment YAML 이미지 태그 업데이트
 ```bash
 # Harbor Registry 이미지 태그로 일괄 변경
-./update-deployment-images.sh 27.96.156.180.nip.io
-
-# 변경 확인
-grep "image:" *.yaml | grep -v "#"
-
-# 복원하려면 (필요시)
-for f in *.yaml.bak; do mv "$f" "${f%.bak}"; done
+./update-deployment-images.sh ${DOMAIN}
 ```
 
 ### 3. 클러스터별 서비스 배포
@@ -315,7 +203,6 @@ kubectl apply -f redis.yaml
 kubectl apply -f user-service.yaml
 kubectl apply -f api-gateway.yaml
 kubectl apply -f istio-virtualservice.yaml
-kubectl apply -f istio-destinationrule.yaml
 ```
 
 #### ctx2 클러스터 (Movie + Booking Service)  
@@ -324,12 +211,10 @@ kubectl apply -f istio-destinationrule.yaml
 kubectl config use-context ctx2
 
 # 기본 리소스 배포
-kubectl apply -f namespace.yaml
-kubectl apply -f redis.yaml
-kubectl apply -f movie-service.yaml
-kubectl apply -f booking-service.yaml
-kubectl apply -f istio-virtualservice.yaml
-kubectl apply -f istio-destinationrule.yaml
+kubectl apply -f namespace.yaml --context ctx2
+kubectl apply -f redis.yaml --context ctx2
+kubectl apply -f movie-service.yaml --context ctx2
+kubectl apply -f booking-service.yaml --context ctx2
 ```
 
 #### 전체 배포 (각 클러스터에서) - Kustomize 사용
