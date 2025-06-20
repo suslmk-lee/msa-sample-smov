@@ -32,8 +32,25 @@ spec:
         volumeMounts:
         - name: redis-data
           mountPath: /data
+        - name: redis-init
+          mountPath: /docker-entrypoint-initdb.d
+        command: ["sh", "-c"]
+        args:
+        - |
+          redis-server --daemonize yes
+          sleep 3
+          redis-cli HSET users:1 id 1 name "홍길동" email "hong@example.com"
+          redis-cli HSET users:2 id 2 name "이순신" email "sunshin@example.com"  
+          redis-cli HSET users:3 id 3 name "김유신" email "yusin@example.com"
+          redis-cli SADD users "users:1" "users:2" "users:3"
+          echo "Initial data loaded successfully"
+          pkill redis-server
+          sleep 1
+          redis-server
       volumes:
       - name: redis-data
+        emptyDir: {}
+      - name: redis-init
         emptyDir: {}
       affinity:
         nodeAffinity:

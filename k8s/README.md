@@ -109,7 +109,8 @@ kubectl label nodes <node-name> cluster-name=ctx2 --context=ctx2
 - **고정 배포**: nodeAffinity로 서비스별 클러스터 고정 배포
   - ctx1: User Service, API Gateway (cp-gateway 위치)
   - ctx2: Movie Service, Booking Service
-- **Redis**: 두 클러스터 모두 배포 (preferredAffinity)
+- **Redis**: 단일 Redis 서비스 (preferredAffinity로 클러스터 배치)
+- **초기 데이터**: Redis 시작 시 자동으로 3명의 사용자 데이터 생성
 - **네임스페이스**: 모든 리소스는 `theater-msa` 네임스페이스에 배포
 
 #### 5. Istio 설정 요구사항
@@ -173,9 +174,9 @@ podman login harbor.${DOMAIN}
 cd ..
 
 # 각 서비스별 이미지 빌드
-docker build -t harbor.${DOMAIN}/theater-msa/user-service:latest ./user-service/
-docker build -t harbor.${DOMAIN}/theater-msa/movie-service:latest ./movie-service/
-docker build -t harbor.${DOMAIN}/theater-msa/booking-service:latest ./booking-service/
+docker build -t harbor.${DOMAIN}/theater-msa/user-service:latest ./services/user-service/
+docker build -t harbor.${DOMAIN}/theater-msa/movie-service:latest ./services/movie-service/
+docker build -t harbor.${DOMAIN}/theater-msa/booking-service:latest ./services/booking-service/
 docker build -t harbor.${DOMAIN}/theater-msa/api-gateway:latest ./api-gateway/
 
 # 각 이미지 푸시
@@ -517,7 +518,8 @@ kubectl delete namespace theater-msa
 ### 1. MSA 핵심 개념
 - **서비스 분리**: 각 기능별 독립적인 서비스
 - **API 게이트웨이**: 단일 진입점 패턴
-- **데이터 저장소**: 서비스별 데이터 격리
+- **공유 데이터 저장소**: 단일 Redis를 통한 데이터 공유
+- **트래픽 분산**: 가중치 기반 로드 밸런싱
 
 ### 2. Kubernetes 기본 개념
 - **Pod**: 애플리케이션 실행 단위
@@ -549,12 +551,12 @@ kubectl delete namespace theater-msa
 - **통합 관측성**: 전체 인프라에 걸친 통합 모니터링
 - **보안 정책**: 클라우드에 관계없이 일관된 mTLS 보안
 
-### 6. 실시간 배포 상태 모니터링
-- **Kubernetes API 통합**: 실시간 Pod, Node, Deployment 상태 수집
-- **웹 대시보드**: 브라우저에서 직접 확인 가능한 배포 상태
-- **멀티클러스터 시각화**: 클러스터별 서비스 분산 현황 표시
-- **3열 UI 레이아웃**: 사용자/영화/예약 데이터 컴팩트 표시
-- **ConfigMap 기반 UI**: UI 파일의 독립적 관리 및 업데이트
+### 6. 트래픽 분산 시각화
+- **실시간 트래픽 라이트**: 클러스터별 요청 분산을 시각적으로 표시
+- **가중치 기반 라우팅**: 설정 가능한 트래픽 분산 비율
+- **누적 통계**: 실제 요청 분산 비율 계산 및 표시
+- **웹 대시보드**: 사용자/영화/예약 서비스별 독립적 모니터링
+- **초기 데이터 자동 설정**: Redis 시작 시 샘플 데이터 자동 생성
 
 ## 🎓 시연 체크리스트
 

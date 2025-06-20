@@ -40,6 +40,8 @@ spec:
         envFrom:
         - configMapRef:
             name: theater-config
+        - configMapRef:
+            name: traffic-weights-config
         resources:
           requests:
             memory: "64Mi"

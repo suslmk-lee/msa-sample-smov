@@ -13,38 +13,6 @@ spec:
   http:
   - match:
     - uri:
-        prefix: /users
-    route:
-    - destination:
-        host: user-service.theater-msa.svc.cluster.local
-        port:
-          number: 8081
-    fault:
-      delay:
-        percentage:
-          value: 0.1
-        fixedDelay: 1s
-  - match:
-    - uri:
-        prefix: /movies
-    route:
-    - destination:
-        host: movie-service.theater-msa.svc.cluster.local
-        port:
-          number: 8082
-    retries:
-      attempts: 3
-      perTryTimeout: 2s
-  - match:
-    - uri:
-        prefix: /bookings
-    route:
-    - destination:
-        host: booking-service.theater-msa.svc.cluster.local
-        port:
-          number: 8083
-  - match:
-    - uri:
         prefix: /deployment-status
     route:
     - destination:

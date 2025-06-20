@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traffic-weights-config
+  namespace: theater-msa
+  labels:
+    app: traffic-weights
+data:
+  # User Service 트래픽 분산 (ctx1: 70%, ctx2: 30%)
+  USER_SERVICE_CTX1_WEIGHT: "70"
+  USER_SERVICE_CTX2_WEIGHT: "30"
+  
+  # Movie Service 트래픽 분산 (ctx1: 30%, ctx2: 70%)  
+  MOVIE_SERVICE_CTX1_WEIGHT: "30"
+  MOVIE_SERVICE_CTX2_WEIGHT: "70"
+  
+  # Booking Service 트래픽 분산 (ctx1: 50%, ctx2: 50%)
+  BOOKING_SERVICE_CTX1_WEIGHT: "50"
+  BOOKING_SERVICE_CTX2_WEIGHT: "50"
+  
+  # 교육용 설명
+  DESCRIPTION: |
+    멀티클라우드 환경에서의 트래픽 분산 설정
+    - 값을 변경하여 실시간으로 트래픽 분산 비율 조정 가능
+    - 총합이 100이 되도록 설정하는 것을 권장
+    - 0으로 설정하면 해당 클러스터로 트래픽이 전송되지 않음
