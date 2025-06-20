@@ -1,0 +1,114 @@
+# ctx1용 booking-service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service-ctx1
+  namespace: theater-msa
+  labels:
+    app: booking-service
+    tier: backend
+    cluster: ctx1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-service
+      cluster: ctx1
+  template:
+    metadata:
+      labels:
+        app: booking-service
+        tier: backend
+        cluster: ctx1
+    spec:
+      containers:
+      - name: booking-service
+        image: harbor.27.96.156.180.nip.io/theater-msa/booking-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8083
+        envFrom:
+        - configMapRef:
+            name: theater-config
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: cluster-name
+                operator: In
+                values:
+                - ctx1
+---
+# ctx2용 booking-service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service-ctx2
+  namespace: theater-msa
+  labels:
+    app: booking-service
+    tier: backend
+    cluster: ctx2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: booking-service
+      cluster: ctx2
+  template:
+    metadata:
+      labels:
+        app: booking-service
+        tier: backend
+        cluster: ctx2
+    spec:
+      containers:
+      - name: booking-service
+        image: harbor.27.96.156.180.nip.io/theater-msa/booking-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8083
+        envFrom:
+        - configMapRef:
+            name: theater-config
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: cluster-name
+                operator: In
+                values:
+                - ctx2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-service
+  namespace: theater-msa
+  labels:
+    app: booking-service
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8083
+    targetPort: 8083
+    protocol: TCP
+  selector:
+    app: booking-service

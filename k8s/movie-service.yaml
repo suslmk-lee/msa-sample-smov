@@ -16,6 +16,7 @@ spec:
       labels:
         app: movie-service
         tier: backend
+        cluster: ctx2
     spec:
       containers:
       - name: movie-service

@@ -26,14 +26,9 @@ data:
                     <h2>👥 사용자 목록</h2>
                     <div class="traffic-indicator">
                         <div class="traffic-main">
-                            <div class="traffic-lights-horizontal" id="user-traffic-lights">
-                                <!-- 트래픽 라이트가 여기에 동적으로 추가됩니다 -->
-                            </div>
-                            <div class="traffic-stats">
-                                <div class="stat-item">
-                                    <div class="stat-label">설정: <span id="user-weight-info">70%/30%</span></div>
-                                    <div class="stat-label">누적: <span id="user-cumulative-info">0%/0%</span></div>
-                                </div>
+                            <div class="istio-config">
+                                <div class="config-item">VirtualService: 70% CTX1, 30% CTX2</div>
+                                <div class="config-item">DestinationRule: ROUND_ROBIN</div>
                             </div>
                         </div>
                     </div>
@@ -45,14 +40,9 @@ data:
                     <h2>🎭 영화 목록</h2>
                     <div class="traffic-indicator">
                         <div class="traffic-main">
-                            <div class="traffic-lights-horizontal" id="movie-traffic-lights">
-                                <!-- 트래픽 라이트가 여기에 동적으로 추가됩니다 -->
-                            </div>
-                            <div class="traffic-stats">
-                                <div class="stat-item">
-                                    <div class="stat-label">설정: <span id="movie-weight-info">30%/70%</span></div>
-                                    <div class="stat-label">누적: <span id="movie-cumulative-info">0%/0%</span></div>
-                                </div>
+                            <div class="istio-config">
+                                <div class="config-item">VirtualService: 30% CTX1, 70% CTX2</div>
+                                <div class="config-item">DestinationRule: ROUND_ROBIN</div>
                             </div>
                         </div>
                     </div>
@@ -64,14 +54,9 @@ data:
                     <h2>🎫 예약 내역</h2>
                     <div class="traffic-indicator">
                         <div class="traffic-main">
-                            <div class="traffic-lights-horizontal" id="booking-traffic-lights">
-                                <!-- 트래픽 라이트가 여기에 동적으로 추가됩니다 -->
-                            </div>
-                            <div class="traffic-stats">
-                                <div class="stat-item">
-                                    <div class="stat-label">설정: <span id="booking-weight-info">50%/50%</span></div>
-                                    <div class="stat-label">누적: <span id="booking-cumulative-info">0%/0%</span></div>
-                                </div>
+                            <div class="istio-config">
+                                <div class="config-item">VirtualService: 50% CTX1, 50% CTX2</div>
+                                <div class="config-item">DestinationRule: ROUND_ROBIN</div>
                             </div>
                         </div>
                     </div>
@@ -187,58 +172,23 @@ data:
         gap: 10px;
     }
 
-    .traffic-lights-horizontal {
-        display: flex;
-        gap: 3px;
-        flex-wrap: wrap;
-    }
-
-    .light {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        border: 1px solid #cbd5e0;
-        font-size: 6px;
-        text-align: center;
-        line-height: 10px;
-        transition: all 0.3s ease;
-        background: #f7fafc;
-    }
-
-    .light.green {
-        background: #10b981;
-        color: white;
-        border-color: #059669;
-        animation: pulse-green 2s ease-in-out infinite;
-    }
-
-    .light.red {
-        background: #ef4444;
-        color: white;
-        border-color: #dc2626;
-        animation: pulse-red 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse-green {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
-    }
-
-    @keyframes pulse-red {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.7; }
-    }
-
-    .traffic-stats {
+    .istio-config {
         flex: 1;
-        text-align: right;
     }
 
-    .stat-label {
-        font-size: 0.7em;
-        color: #4a5568;
-        display: block;
-        margin-bottom: 2px;
+    .config-item {
+        background: #4299e1;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        font-size: 0.75em;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .config-item:last-child {
+        margin-bottom: 0;
     }
 
     .data-section .data-item {
@@ -417,21 +367,12 @@ data:
     }
   script.js: |
     // 전역 변수
-    let trafficHistory = {
-        user: [],
-        movie: [],
-        booking: []
-    };
-    
     let currentUsers = [];
     let currentMovies = [];
     let currentBookings = [];
     
-    const maxHistorySize = 100;
-    
     // 페이지 로드 시 초기화
     document.addEventListener('DOMContentLoaded', function() {
-        initializeTrafficLights();
         initializeData();
         loadUsers();
         loadMovies();
@@ -439,21 +380,6 @@ data:
         loadDeploymentStatus();
         startPeriodicUpdates();
     });
-    
-    // 트래픽 라이트 초기화 (16개)
-    function initializeTrafficLights() {
-        const services = ['user', 'movie', 'booking'];
-        services.forEach(service => {
-            const container = document.getElementById(`${service}-traffic-lights`);
-            container.innerHTML = '';
-            for (let i = 0; i < 16; i++) {
-                const light = document.createElement('div');
-                light.className = 'light';
-                light.textContent = '●';
-                container.appendChild(light);
-            }
-        });
-    }
     
     // 초기 데이터 설정
     async function initializeData() {
@@ -498,33 +424,11 @@ data:
     
     async function loadUsers() {
         try {
-            // 가중치 정보 가져오기
-            let weights = { UserServiceCtx1Weight: 70, UserServiceCtx2Weight: 30 };
-            try {
-                const weightsResponse = await fetch('/traffic-weights');
-                weights = await weightsResponse.json();
-            } catch (weightError) {
-                console.log('가중치 정보 로딩 실패, 기본값 사용');
-            }
-            
-            // 신호등용 클러스터 선택 (가중치 기반)
-            const selectedCluster = selectRandomCluster(weights.UserServiceCtx1Weight, weights.UserServiceCtx2Weight);
-            
-            // 사용자 데이터 로드
+            console.log('Loading users via Istio VirtualService (70% CTX1, 30% CTX2)');
             const response = await fetch('/users/');
             const users = await response.json();
-            currentUsers = users; // 전역 변수에 저장
+            currentUsers = users;
             displayUsers(users);
-            
-            // 트래픽 히스토리에 추가 (신호등용)
-            addToLocalHistory('user', selectedCluster);
-            
-            // 트래픽 라이트 업데이트
-            updateTrafficLights('user');
-            
-            // 가중치 정보 업데이트
-            updateServiceDisplay('user', weights.UserServiceCtx1Weight, weights.UserServiceCtx2Weight);
-            
         } catch (error) {
             console.error('사용자 로딩 실패:', error);
             document.getElementById('users').innerHTML = '<p style="color: red;">사용자 데이터를 불러올 수 없습니다.</p>';
@@ -533,32 +437,11 @@ data:
     
     async function loadMovies() {
         try {
-            // 가중치 정보 가져오기
-            let weights = { MovieServiceCtx1Weight: 30, MovieServiceCtx2Weight: 70 };
-            try {
-                const weightsResponse = await fetch('/traffic-weights');
-                weights = await weightsResponse.json();
-            } catch (weightError) {
-                console.log('가중치 정보 로딩 실패, 기본값 사용');
-            }
-            
-            // 신호등용 클러스터 선택 (가중치 기반)
-            const selectedCluster = selectRandomCluster(weights.MovieServiceCtx1Weight, weights.MovieServiceCtx2Weight);
-            
+            console.log('Loading movies via Istio VirtualService (30% CTX1, 70% CTX2)');
             const response = await fetch('/movies/');
             const movies = await response.json();
             currentMovies = movies;
             displayMovies(movies);
-            
-            // 트래픽 히스토리에 추가 (신호등용)
-            addToLocalHistory('movie', selectedCluster);
-            
-            // 트래픽 라이트 업데이트
-            updateTrafficLights('movie');
-            
-            // 가중치 정보 업데이트
-            updateServiceDisplay('movie', weights.MovieServiceCtx1Weight, weights.MovieServiceCtx2Weight);
-            
         } catch (error) {
             console.error('영화 로딩 실패:', error);
             document.getElementById('movies').innerHTML = '<p style="color: red;">영화 데이터를 불러올 수 없습니다.</p>';
@@ -567,32 +450,11 @@ data:
     
     async function loadBookings() {
         try {
-            // 가중치 정보 가져오기
-            let weights = { BookingServiceCtx1Weight: 50, BookingServiceCtx2Weight: 50 };
-            try {
-                const weightsResponse = await fetch('/traffic-weights');
-                weights = await weightsResponse.json();
-            } catch (weightError) {
-                console.log('가중치 정보 로딩 실패, 기본값 사용');
-            }
-            
-            // 신호등용 클러스터 선택 (가중치 기반)
-            const selectedCluster = selectRandomCluster(weights.BookingServiceCtx1Weight, weights.BookingServiceCtx2Weight);
-            
+            console.log('Loading bookings via Istio VirtualService (50% CTX1, 50% CTX2)');
             const response = await fetch('/bookings/');
             const bookings = await response.json();
             currentBookings = bookings;
             displayBookings(bookings);
-            
-            // 트래픽 히스토리에 추가 (신호등용)
-            addToLocalHistory('booking', selectedCluster);
-            
-            // 트래픽 라이트 업데이트
-            updateTrafficLights('booking');
-            
-            // 가중치 정보 업데이트
-            updateServiceDisplay('booking', weights.BookingServiceCtx1Weight, weights.BookingServiceCtx2Weight);
-            
         } catch (error) {
             console.error('예약 로딩 실패:', error);
             document.getElementById('bookings').innerHTML = '<p style="color: red;">예약 데이터를 불러올 수 없습니다.</p>';
@@ -610,83 +472,6 @@ data:
         }
     }
     
-    // 가중치 기반 클러스터 선택
-    function selectRandomCluster(ctx1Weight, ctx2Weight) {
-        const total = ctx1Weight + ctx2Weight;
-        if (total === 0) return 'ctx1';
-        
-        const random = Math.random() * total;
-        return random < ctx1Weight ? 'ctx1' : 'ctx2';
-    }
-    
-    // 로컬 트래픽 히스토리에 추가
-    function addToLocalHistory(serviceType, cluster) {
-        if (!trafficHistory[serviceType]) {
-            trafficHistory[serviceType] = [];
-        }
-        
-        trafficHistory[serviceType].push(cluster);
-        
-        // 최대 크기 제한
-        if (trafficHistory[serviceType].length > maxHistorySize) {
-            trafficHistory[serviceType] = trafficHistory[serviceType].slice(-maxHistorySize);
-        }
-    }
-    
-    // 트래픽 라이트 업데이트
-    function updateTrafficLights(serviceType) {
-        const container = document.getElementById(`${serviceType}-traffic-lights`);
-        const lights = container.querySelectorAll('.light');
-        const history = trafficHistory[serviceType] || [];
-        
-        // 최신 16개 항목만 사용
-        const recentHistory = history.slice(-16);
-        
-        lights.forEach((light, index) => {
-            light.className = 'light'; // 기본 클래스 재설정
-            
-            if (index < recentHistory.length) {
-                const cluster = recentHistory[index];
-                if (cluster === 'ctx1') {
-                    light.classList.add('green');
-                } else if (cluster === 'ctx2') {
-                    light.classList.add('red');
-                }
-            }
-        });
-    }
-    
-    // 서비스 표시 정보 업데이트
-    function updateServiceDisplay(serviceType, ctx1Weight, ctx2Weight) {
-        const total = ctx1Weight + ctx2Weight;
-        if (total === 0) return;
-        
-        // 설정 비중 업데이트
-        const weightInfo = document.getElementById(`${serviceType}-weight-info`);
-        if (weightInfo) {
-            const ctx1Percent = Math.round((ctx1Weight / total) * 100);
-            const ctx2Percent = Math.round((ctx2Weight / total) * 100);
-            weightInfo.textContent = `${ctx1Percent}%/${ctx2Percent}%`;
-        }
-        
-        // 누적 비중 계산 및 업데이트
-        const history = trafficHistory[serviceType] || [];
-        if (history.length > 0) {
-            const ctx1Count = history.filter(cluster => cluster === 'ctx1').length;
-            const ctx2Count = history.filter(cluster => cluster === 'ctx2').length;
-            const totalCount = ctx1Count + ctx2Count;
-            
-            if (totalCount > 0) {
-                const ctx1CumulativePercent = Math.round((ctx1Count / totalCount) * 100);
-                const ctx2CumulativePercent = Math.round((ctx2Count / totalCount) * 100);
-                
-                const cumulativeInfo = document.getElementById(`${serviceType}-cumulative-info`);
-                if (cumulativeInfo) {
-                    cumulativeInfo.textContent = `${ctx1CumulativePercent}%/${ctx2CumulativePercent}%`;
-                }
-            }
-        }
-    }
     
     function displayUsers(users) {
         const container = document.getElementById('users');

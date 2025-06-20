@@ -335,19 +335,38 @@ kubectl port-forward svc/jaeger 16686:16686 -n istio-system
 kubectl port-forward svc/prometheus 9090:9090 -n istio-system
 ```
 
-### 5. 트래픽 관리 시연
+### 5. Istio 트래픽 관리 시연
 ```bash
-# VirtualService를 통한 트래픽 분산 확인
-kubectl describe virtualservice theater-msa -n istio-system
+# DestinationRule 확인 (클러스터별 subset 정의)
+kubectl get destinationrule -n theater-msa
+kubectl describe destinationrule user-service-dr -n theater-msa
+
+# VirtualService 확인 (가중치 기반 트래픽 분산)
+kubectl get virtualservice -n theater-msa
+kubectl describe virtualservice user-service-vs -n theater-msa
+
+# 트래픽 분산 비율 실시간 변경
+kubectl patch virtualservice user-service-vs -n theater-msa --type='merge' -p='
+{
+  "spec": {
+    "http": [{
+      "route": [
+        {"destination": {"host": "user-service", "subset": "ctx1"}, "weight": 90},
+        {"destination": {"host": "user-service", "subset": "ctx2"}, "weight": 10}
+      ]
+    }]
+  }
+}'
+
+# 카나리 배포 테스트
+curl -H "x-canary: true" http://theater.$DOMAIN/users/
+
+# Envoy 설정 확인
+istioctl proxy-config cluster deployment/user-service.theater-msa
+istioctl proxy-config endpoints deployment/user-service.theater-msa
 
 # cp-gateway 설정 확인
 kubectl get gateway cp-gateway -n istio-system -o yaml
-
-# DestinationRule 정책 확인
-kubectl describe destinationrule user-service-dr -n theater-msa
-
-# 실시간 트래픽 모니터링
-kubectl logs -f deployment/istio-proxy -c istio-proxy -n theater-msa
 ```
 
 ## 🔧 운영 및 관리
@@ -519,7 +538,7 @@ kubectl delete namespace theater-msa
 - **서비스 분리**: 각 기능별 독립적인 서비스
 - **API 게이트웨이**: 단일 진입점 패턴
 - **공유 데이터 저장소**: 단일 Redis를 통한 데이터 공유
-- **트래픽 분산**: 가중치 기반 로드 밸런싱
+- **Istio 네이티브 트래픽 분산**: DestinationRule과 VirtualService를 통한 서비스메시 기반 로드 밸런싱
 
 ### 2. Kubernetes 기본 개념
 - **Pod**: 애플리케이션 실행 단위
@@ -551,12 +570,12 @@ kubectl delete namespace theater-msa
 - **통합 관측성**: 전체 인프라에 걸친 통합 모니터링
 - **보안 정책**: 클라우드에 관계없이 일관된 mTLS 보안
 
-### 6. 트래픽 분산 시각화
-- **실시간 트래픽 라이트**: 클러스터별 요청 분산을 시각적으로 표시
-- **가중치 기반 라우팅**: 설정 가능한 트래픽 분산 비율
-- **누적 통계**: 실제 요청 분산 비율 계산 및 표시
-- **웹 대시보드**: 사용자/영화/예약 서비스별 독립적 모니터링
-- **초기 데이터 자동 설정**: Redis 시작 시 샘플 데이터 자동 생성
+### 6. Istio 트래픽 관리 (DestinationRule & VirtualService)
+- **DestinationRule**: 클러스터별 subset 정의 및 로드밸런싱 정책
+- **VirtualService**: 가중치 기반 트래픽 분산 (User: 70%/30%, Movie: 30%/70%, Booking: 50%/50%)
+- **카나리 배포**: `x-canary: true` 헤더를 통한 특정 클러스터 라우팅
+- **Envoy 네이티브 처리**: 애플리케이션 레벨이 아닌 인프라 레벨 트래픽 관리
+- **실시간 설정 변경**: kubectl을 통한 즉시 트래픽 정책 수정 가능
 
 ## 🎓 시연 체크리스트
 
