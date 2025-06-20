@@ -74,6 +74,9 @@ k8s/
 ├── kustomization.yaml           # 통합 배포 설정
 ├── build-images.sh              # Harbor 이미지 빌드 스크립트
 ├── update-deployment-images.sh  # Deployment YAML 이미지 태그 일괄 변경 스크립트
+├── deploy-ctx1.sh               # CTX1 클러스터 전용 배포 스크립트
+├── deploy-ctx2.sh               # CTX2 클러스터 전용 배포 스크립트
+├── deploy-all.sh                # 멀티클라우드 통합 배포 스크립트
 ├── cleanup.sh                   # 샘플 배포 일괄 삭제 스크립트
 └── README.md                   # 이 파일
 ```
@@ -204,9 +207,38 @@ cd k8s/
 ./update-deployment-images.sh ${DOMAIN}
 ```
 
-### 3. 멀티클라우드 서비스 배포 (DestinationRule/VirtualService 기반)
+### 3. 멀티클라우드 서비스 배포 방법
 
-#### Step 1: ctx1 클러스터 (User Service + API Gateway)
+#### 방법 1: 자동 배포 스크립트 사용 (권장)
+
+##### 전체 멀티클라우드 배포
+```bash
+# DOMAIN 환경변수 설정
+export DOMAIN="27.96.156.180.nip.io"
+
+# 멀티클라우드 통합 배포 (CTX1 + CTX2)
+./deploy-all.sh
+
+# 도움말 확인
+./deploy-all.sh --help
+```
+
+##### 개별 클러스터 배포
+```bash
+# CTX1만 배포 (NaverCloud Platform)
+./deploy-ctx1.sh
+
+# CTX2만 배포 (NHN Cloud NKS) 
+./deploy-ctx2.sh
+
+# 각 스크립트 도움말
+./deploy-ctx1.sh --help
+./deploy-ctx2.sh --help
+```
+
+#### 방법 2: 수동 배포 (고급 사용자)
+
+##### Step 1: ctx1 클러스터 (User Service + API Gateway)
 ```bash
 # ctx1 클러스터 접속
 kubectl config use-context ctx1
@@ -229,7 +261,7 @@ kubectl apply -f istio-virtualservices.yaml
 kubectl apply -f istio-virtualservice.yaml  # 외부 접근용
 ```
 
-#### Step 2: ctx2 클러스터 (Movie + Booking Service)  
+##### Step 2: ctx2 클러스터 (Movie + Booking Service)  
 ```bash
 # ctx2 클러스터 접속
 kubectl config use-context ctx2
@@ -248,7 +280,7 @@ kubectl apply -f istio-destinationrules.yaml
 kubectl apply -f istio-virtualservices.yaml
 ```
 
-#### Step 3: 전체 배포 (Kustomize 사용) - 권장
+##### Step 3: Kustomize 사용 배포 (대안)
 ```bash
 # 각 클러스터에서 실행 (모든 리소스 자동 배포)
 kubectl config use-context ctx1
@@ -258,13 +290,14 @@ kubectl config use-context ctx2
 kubectl apply -k .
 ```
 
-#### Step 4: 트래픽 분산 동작 확인
+#### 배포 후 검증
 ```bash
 # 각 클러스터에서 Pod 분산 상태 확인
-kubectl get pods -n theater-msa -o wide --show-labels
+kubectl get pods -n theater-msa -o wide --show-labels --context=ctx1
+kubectl get pods -n theater-msa -o wide --show-labels --context=ctx2
 
 # VirtualService 가중치 설정 확인
-kubectl get vs -n theater-msa -o yaml | grep -A 3 weight
+kubectl get vs -n theater-msa -o yaml --context=ctx1 | grep -A 3 weight
 
 # 실제 트래픽 분산 테스트
 for i in {1..10}; do
