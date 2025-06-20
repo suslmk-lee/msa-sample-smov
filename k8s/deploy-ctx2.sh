@@ -80,25 +80,26 @@ check_images() {
 deploy_ctx2_resources() {
     log_info "=== CTX2 클러스터 리소스 배포 시작 ==="
     
-    # 1. 기본 네임스페이스 (ctx1에서 이미 생성되었지만, 각 클러스터에서 독립적으로 관리)
-    log_info "1. 기본 네임스페이스 설정..."
+    # 1. 기본 네임스페이스 및 권한 설정
+    log_info "1. 기본 네임스페이스 및 권한 설정..."
     kubectl apply -f namespace.yaml
+    kubectl apply -f rbac.yaml
     
     # 2. Redis (공유 - preferredAffinity로 배치, 실제로는 ctx1에 있을 것)
     log_info "2. Redis 배포 (공유 서비스)..."
     kubectl apply -f redis.yaml
     
-    # 3. User Service (멀티클라우드 버전 - ctx2 포함)
+    # 3. User Service (CTX2 전용)
     log_info "3. User Service 배포..."
-    kubectl apply -f user-service-multicloud.yaml
+    kubectl apply -f user-service-ctx2.yaml
     
-    # 4. Movie Service (멀티클라우드 버전 - ctx2 우선)
+    # 4. Movie Service (CTX2 전용)
     log_info "4. Movie Service 배포..."
-    kubectl apply -f movie-service-multicloud.yaml
+    kubectl apply -f movie-service-ctx2.yaml
     
-    # 5. Booking Service (멀티클라우드 버전 - ctx2 우선)
+    # 5. Booking Service (CTX2 전용)
     log_info "5. Booking Service 배포..."
-    kubectl apply -f booking-service-multicloud.yaml
+    kubectl apply -f booking-service-ctx2.yaml
     
     # 6. Istio 트래픽 관리 (DestinationRule & VirtualService)
     log_info "6. Istio DestinationRule 배포..."
@@ -187,15 +188,14 @@ show_ctx2_info() {
     log_info "=== CTX2 클러스터 정보 ==="
     
     echo "🎭 CTX2 주요 서비스:"
-    echo "  - Movie Service (70% 트래픽)"
-    echo "  - Booking Service (50% 트래픽)"
-    echo "  - User Service (30% 트래픽)"
+    echo "  - Movie Service (CTX2 전용 - VirtualService로 트래픽 분산)"
+    echo "  - Booking Service (CTX2 전용 - VirtualService로 트래픽 분산)"
+    echo "  - User Service (CTX2 전용 - VirtualService로 트래픽 분산)"
     
     echo
-    echo "📊 트래픽 분산 확인:"
-    echo "  Movie Service: 30% CTX1, 70% CTX2"
-    echo "  Booking Service: 50% CTX1, 50% CTX2"
-    echo "  User Service: 70% CTX1, 30% CTX2"
+    echo "📊 트래픽 분산 (VirtualService 설정):"
+    echo "  eastwest-gateway를 통한 크로스 클러스터 트래픽 분산"
+    echo "  실제 비율은 VirtualService 설정에 따라 동적 조정"
     
     echo
     echo "🔍 모니터링 명령어:"
@@ -207,7 +207,7 @@ show_ctx2_info() {
     echo "🌐 외부 접근:"
     echo "  CTX1의 API Gateway를 통해 접근"
     if [ -n "$DOMAIN" ]; then
-        echo "  http://theater.$DOMAIN"
+        echo "  https://theater.$DOMAIN"
     fi
 }
 
@@ -281,9 +281,9 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "  - CTX1 클러스터 배포 완료 권장"
     echo
     echo "배포되는 서비스:"
-    echo "  - User Service (멀티클라우드)"
-    echo "  - Movie Service (멀티클라우드)"
-    echo "  - Booking Service (멀티클라우드)"
+    echo "  - User Service (CTX2 전용)"
+    echo "  - Movie Service (CTX2 전용)"
+    echo "  - Booking Service (CTX2 전용)"
     echo "  - Redis (공유)"
     echo "  - Istio DestinationRule & VirtualService"
     echo

@@ -93,17 +93,17 @@ deploy_ctx1_resources() {
     log_info "3. Redis 배포..."
     kubectl apply -f redis-ctx1-service.yaml
     
-    # 4. User Service (멀티클라우드 버전 - ctx1 포함)
+    # 4. User Service (CTX1 전용)
     log_info "4. User Service 배포..."
-    kubectl apply -f user-service-multicloud.yaml
+    kubectl apply -f user-service-ctx1.yaml
     
-    # 5. Movie Service (멀티클라우드 버전 - ctx1 포함)
+    # 5. Movie Service (CTX1 전용)
     log_info "5. Movie Service 배포..."
-    kubectl apply -f movie-service-multicloud.yaml
+    kubectl apply -f movie-service-ctx1.yaml
     
-    # 6. Booking Service (멀티클라우드 버전 - ctx1 포함)
+    # 6. Booking Service (CTX1 전용)
     log_info "6. Booking Service 배포..."
-    kubectl apply -f booking-service-multicloud.yaml
+    kubectl apply -f booking-service-ctx1.yaml
     
     # 7. API Gateway (ctx1 전용)
     log_info "7. API Gateway 배포..."
@@ -181,16 +181,16 @@ show_access_info() {
     
     if [ -n "$DOMAIN" ]; then
         echo "🌐 외부 접근 URL:"
-        echo "  Theater MSA: http://theater.$DOMAIN"
+        echo "  Theater MSA: https://theater.$DOMAIN"
         echo "  API 엔드포인트:"
-        echo "    - 사용자: http://theater.$DOMAIN/users/"
-        echo "    - 영화: http://theater.$DOMAIN/movies/"
-        echo "    - 예약: http://theater.$DOMAIN/bookings/"
+        echo "    - 사용자: https://theater.$DOMAIN/users/"
+        echo "    - 영화: https://theater.$DOMAIN/movies/"
+        echo "    - 예약: https://theater.$DOMAIN/bookings/"
         
         echo
         echo "🧪 테스트 명령어:"
-        echo "  curl http://theater.$DOMAIN/users/"
-        echo "  curl -H 'x-canary: true' http://theater.$DOMAIN/users/"
+        echo "  curl -k https://theater.$DOMAIN/users/"
+        echo "  curl -k -H 'x-canary: true' https://theater.$DOMAIN/users/"
     else
         log_warning "DOMAIN이 설정되지 않아 외부 접근 URL을 표시할 수 없습니다."
     fi
@@ -262,9 +262,9 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "  - Harbor Registry에 이미지 업로드 완료"
     echo
     echo "배포되는 서비스:"
-    echo "  - User Service (멀티클라우드)"
-    echo "  - Movie Service (멀티클라우드)"
-    echo "  - Booking Service (멀티클라우드)"
+    echo "  - User Service (CTX1 전용)"
+    echo "  - Movie Service (CTX1 전용)"
+    echo "  - Booking Service (CTX1 전용)"
     echo "  - API Gateway"
     echo "  - Redis (공유)"
     echo "  - Istio DestinationRule & VirtualService"

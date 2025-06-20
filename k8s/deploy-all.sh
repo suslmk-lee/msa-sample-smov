@@ -89,7 +89,7 @@ setup_domain() {
     fi
     
     log_info "사용할 도메인: $DOMAIN"
-    log_info "Theater MSA URL: http://theater.$DOMAIN"
+    log_info "Theater MSA URL: https://theater.$DOMAIN"
     
     # update-deployment-images.sh 실행 여부 확인
     log_warning "Harbor Registry 이미지 태그 업데이트를 실행하시겠습니까?"
@@ -108,13 +108,17 @@ show_deployment_plan() {
     echo
     echo "📋 배포 순서:"
     echo "  1️⃣  CTX1 (NaverCloud Platform)"
-    echo "      - User Service + API Gateway"
+    echo "      - User Service (CTX1 전용) + API Gateway"
+    echo "      - Movie Service (CTX1 전용)"
+    echo "      - Booking Service (CTX1 전용)"
     echo "      - Redis (공유)"
     echo "      - Istio 트래픽 관리"
     echo "      - 외부 접근 Gateway"
     echo
     echo "  2️⃣  CTX2 (NHN Cloud NKS)"
-    echo "      - Movie Service + Booking Service"
+    echo "      - User Service (CTX2 전용)"
+    echo "      - Movie Service (CTX2 전용)"
+    echo "      - Booking Service (CTX2 전용)"
     echo "      - Istio 트래픽 관리"
     echo "      - 멀티클러스터 연결"
     echo
@@ -192,24 +196,24 @@ show_final_info() {
     echo "================================================"
     
     echo "🌐 접근 정보:"
-    echo "  Theater MSA: http://theater.$DOMAIN"
+    echo "  Theater MSA: https://theater.$DOMAIN"
     echo "  API 엔드포인트:"
-    echo "    - 사용자: http://theater.$DOMAIN/users/"
-    echo "    - 영화: http://theater.$DOMAIN/movies/"
-    echo "    - 예약: http://theater.$DOMAIN/bookings/"
+    echo "    - 사용자: https://theater.$DOMAIN/users/"
+    echo "    - 영화: https://theater.$DOMAIN/movies/"
+    echo "    - 예약: https://theater.$DOMAIN/bookings/"
     
     echo
     echo "🧪 트래픽 분산 테스트:"
     echo "  # 일반 요청 (가중치 분산)"
-    echo "  curl http://theater.$DOMAIN/users/"
-    echo "  curl http://theater.$DOMAIN/movies/"
-    echo "  curl http://theater.$DOMAIN/bookings/"
+    echo "  curl -k https://theater.$DOMAIN/users/"
+    echo "  curl -k https://theater.$DOMAIN/movies/"
+    echo "  curl -k https://theater.$DOMAIN/bookings/"
     echo
     echo "  # 카나리 배포 테스트"
-    echo "  curl -H 'x-canary: true' http://theater.$DOMAIN/users/"
+    echo "  curl -k -H 'x-canary: true' https://theater.$DOMAIN/users/"
     echo
     echo "  # 연속 요청으로 분산 확인"
-    echo "  for i in {1..10}; do curl -s http://theater.$DOMAIN/users/ | head -1; done"
+    echo "  for i in {1..10}; do curl -k -s https://theater.$DOMAIN/users/ | head -1; done"
     
     echo
     echo "📊 모니터링 명령어:"
@@ -321,12 +325,16 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo
     echo "배포 구조:"
     echo "  CTX1 (NaverCloud):"
-    echo "    - User Service + API Gateway"
+    echo "    - User Service (CTX1 전용) + API Gateway"
+    echo "    - Movie Service (CTX1 전용)"
+    echo "    - Booking Service (CTX1 전용)"
     echo "    - Redis (공유)"
     echo "    - 외부 접근 Gateway"
     echo
     echo "  CTX2 (NHN Cloud):"
-    echo "    - Movie Service + Booking Service"
+    echo "    - User Service (CTX2 전용)"
+    echo "    - Movie Service (CTX2 전용)"
+    echo "    - Booking Service (CTX2 전용)"
     echo "    - 멀티클러스터 서비스 디스커버리"
     echo
     echo "관련 스크립트:"
