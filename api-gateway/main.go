@@ -153,35 +153,14 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// API routes with weighted distribution
 	if strings.HasPrefix(r.URL.Path, "/users/") {
-		var selectedService string
-		forceCluster := r.Header.Get("X-Force-Cluster")
-		
-		// 신호등용 클러스터 선택 (가중치 기반)
-		trafficCluster := weightedServiceSelect(
+		selectedService := weightedServiceSelect(
 			"user",
 			trafficWeights.UserServiceCtx1Weight,
 			trafficWeights.UserServiceCtx2Weight,
-			"ctx1",
-			"ctx2",
+			"http://user-service:8081",
+			"http://user-service:8081",
 		)
-		
-		// Redis 접근용 실제 서비스 선택 - 클러스터별 분리된 서비스 사용
-		if forceCluster == "ctx1" {
-			selectedService = "http://user-service-ctx1.theater-msa.svc.cluster.local:8081"
-			log.Printf("Forced routing to user-service CTX1: %s (traffic signal: %s)", selectedService, trafficCluster)
-		} else if forceCluster == "ctx2" {
-			selectedService = "http://user-service-ctx2.theater-msa.svc.cluster.local:8081"
-			log.Printf("Forced routing to user-service CTX2: %s (traffic signal: %s)", selectedService, trafficCluster)
-		} else {
-			// Random인 경우 가중치 기반 선택
-			if trafficCluster == "ctx1" {
-				selectedService = "http://user-service:8081"
-			} else {
-				selectedService = "http://user-service:8081"
-			}
-			log.Printf("Weighted routing to user-service: %s", selectedService)
-		}
-		
+		log.Printf("Routing to user-service: %s", selectedService)
 		proxy := newReverseProxy(selectedService)
 		proxy.ServeHTTP(w, r)
 		return
