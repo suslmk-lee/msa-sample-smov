@@ -50,11 +50,11 @@ spec:
     - destination:
         host: movie-service
         subset: ctx1
-      weight: 60
+      weight: 100
     - destination:
         host: movie-service
         subset: ctx2
-      weight: 40
+      weight: 0
 ---
 # Booking Service VirtualService - 50% ctx1, 50% ctx2
 apiVersion: networking.istio.io/v1beta1
@@ -79,8 +79,8 @@ spec:
     - destination:
         host: booking-service
         subset: ctx1
-      weight: 20
+      weight: 100
     - destination:
         host: booking-service
         subset: ctx2
-      weight: 80
+      weight: 0

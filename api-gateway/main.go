@@ -230,43 +230,22 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// API routes with weighted distribution
 	if strings.HasPrefix(r.URL.Path, "/users/") {
-		selectedService := weightedServiceSelect(
-			"user",
-			trafficWeights.UserServiceCtx1Weight,
-			trafficWeights.UserServiceCtx2Weight,
-			"http://user-service:8081",
-			"http://user-service:8081",
-		)
-		log.Printf("Routing to user-service: %s", selectedService)
-		proxy := newReverseProxy(selectedService)
+		log.Printf("Routing to user-service via Istio VirtualService")
+		proxy := newReverseProxy("http://user-service:8081")
 		proxy.ServeHTTP(w, r)
 		return
 	}
 	
 	if strings.HasPrefix(r.URL.Path, "/movies/") {
-		selectedService := weightedServiceSelect(
-			"movie",
-			trafficWeights.MovieServiceCtx1Weight,
-			trafficWeights.MovieServiceCtx2Weight,
-			"http://movie-service:8082",
-			"http://movie-service:8082",
-		)
-		log.Printf("Routing to movie-service: %s", selectedService)
-		proxy := newReverseProxy(selectedService)
+		log.Printf("Routing to movie-service via Istio VirtualService")
+		proxy := newReverseProxy("http://movie-service:8082")
 		proxy.ServeHTTP(w, r)
 		return
 	}
 	
 	if strings.HasPrefix(r.URL.Path, "/bookings/") {
-		selectedService := weightedServiceSelect(
-			"booking",
-			trafficWeights.BookingServiceCtx1Weight,
-			trafficWeights.BookingServiceCtx2Weight,
-			"http://booking-service:8083",
-			"http://booking-service:8083",
-		)
-		log.Printf("Routing to booking-service: %s", selectedService)
-		proxy := newReverseProxy(selectedService)
+		log.Printf("Routing to booking-service via Istio VirtualService")
+		proxy := newReverseProxy("http://booking-service:8083")
 		proxy.ServeHTTP(w, r)
 		return
 	}
