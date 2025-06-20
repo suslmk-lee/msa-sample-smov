@@ -21,11 +21,11 @@ spec:
     - destination:
         host: user-service
         subset: ctx1
-      weight: 70
+      weight: 30
     - destination:
         host: user-service
         subset: ctx2
-      weight: 30
+      weight: 70
 ---
 # Movie Service VirtualService - 30% ctx1, 70% ctx2
 apiVersion: networking.istio.io/v1beta1

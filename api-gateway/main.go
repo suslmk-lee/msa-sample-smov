@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	istioclient "istio.io/client-go/pkg/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -50,6 +51,7 @@ type TrafficHistory struct {
 }
 
 var kubernetesClient *kubernetes.Clientset
+var istioClient *istioclient.Clientset
 var trafficWeights TrafficWeight
 var trafficHistory TrafficHistory
 var maxHistorySize = 10
@@ -65,6 +67,13 @@ func init() {
 	kubernetesClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Printf("Failed to create Kubernetes client: %v", err)
+		return
+	}
+
+	// Istio 클라이언트 초기화
+	istioClient, err = istioclient.NewForConfig(config)
+	if err != nil {
+		log.Printf("Failed to create Istio client: %v", err)
 		return
 	}
 
@@ -88,6 +97,74 @@ func getEnvInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+// getVirtualServiceWeights reads actual weights from VirtualService resources
+func getVirtualServiceWeights() TrafficWeight {
+	weights := TrafficWeight{
+		UserServiceCtx1Weight:    70, // 기본값
+		UserServiceCtx2Weight:    30,
+		MovieServiceCtx1Weight:   30,
+		MovieServiceCtx2Weight:   70,
+		BookingServiceCtx1Weight: 50,
+		BookingServiceCtx2Weight: 50,
+	}
+
+	if istioClient == nil {
+		log.Printf("Istio client not available, using default weights")
+		return weights
+	}
+
+	// User Service VirtualService 조회
+	if userVS, err := istioClient.NetworkingV1().VirtualServices("theater-msa").Get(context.TODO(), "user-service-vs", metav1.GetOptions{}); err == nil {
+		if len(userVS.Spec.Http) > 1 && len(userVS.Spec.Http[1].Route) >= 2 {
+			// 카나리가 아닌 일반 라우팅 규칙에서 가중치 추출
+			for _, route := range userVS.Spec.Http[1].Route {
+				if route.Destination.Subset == "ctx1" {
+					weights.UserServiceCtx1Weight = int(route.Weight)
+				} else if route.Destination.Subset == "ctx2" {
+					weights.UserServiceCtx2Weight = int(route.Weight)
+				}
+			}
+			log.Printf("User service weights from VirtualService: ctx1=%d, ctx2=%d", weights.UserServiceCtx1Weight, weights.UserServiceCtx2Weight)
+		}
+	} else {
+		log.Printf("Failed to get user-service-vs: %v", err)
+	}
+
+	// Movie Service VirtualService 조회
+	if movieVS, err := istioClient.NetworkingV1().VirtualServices("theater-msa").Get(context.TODO(), "movie-service-vs", metav1.GetOptions{}); err == nil {
+		if len(movieVS.Spec.Http) > 1 && len(movieVS.Spec.Http[1].Route) >= 2 {
+			for _, route := range movieVS.Spec.Http[1].Route {
+				if route.Destination.Subset == "ctx1" {
+					weights.MovieServiceCtx1Weight = int(route.Weight)
+				} else if route.Destination.Subset == "ctx2" {
+					weights.MovieServiceCtx2Weight = int(route.Weight)
+				}
+			}
+			log.Printf("Movie service weights from VirtualService: ctx1=%d, ctx2=%d", weights.MovieServiceCtx1Weight, weights.MovieServiceCtx2Weight)
+		}
+	} else {
+		log.Printf("Failed to get movie-service-vs: %v", err)
+	}
+
+	// Booking Service VirtualService 조회
+	if bookingVS, err := istioClient.NetworkingV1().VirtualServices("theater-msa").Get(context.TODO(), "booking-service-vs", metav1.GetOptions{}); err == nil {
+		if len(bookingVS.Spec.Http) > 1 && len(bookingVS.Spec.Http[1].Route) >= 2 {
+			for _, route := range bookingVS.Spec.Http[1].Route {
+				if route.Destination.Subset == "ctx1" {
+					weights.BookingServiceCtx1Weight = int(route.Weight)
+				} else if route.Destination.Subset == "ctx2" {
+					weights.BookingServiceCtx2Weight = int(route.Weight)
+				}
+			}
+			log.Printf("Booking service weights from VirtualService: ctx1=%d, ctx2=%d", weights.BookingServiceCtx1Weight, weights.BookingServiceCtx2Weight)
+		}
+	} else {
+		log.Printf("Failed to get booking-service-vs: %v", err)
+	}
+
+	return weights
 }
 
 // addToHistory adds a cluster selection to the history for a specific service
@@ -216,10 +293,15 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.Dir("ui")).ServeHTTP(w, r)
 }
 
-// getTrafficWeights returns current traffic weight configuration
+// getTrafficWeights returns current traffic weight configuration from VirtualServices
 func getTrafficWeights(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(trafficWeights)
+	
+	// 실시간으로 VirtualService에서 가중치 조회
+	currentWeights := getVirtualServiceWeights()
+	log.Printf("Returning traffic weights: %+v", currentWeights)
+	
+	json.NewEncoder(w).Encode(currentWeights)
 }
 
 // getTrafficHistory returns recent traffic routing history
