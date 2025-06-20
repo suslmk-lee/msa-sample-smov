@@ -1,0 +1,77 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Theater MSA - Istio DestinationRule/VirtualService 기반 멀티클라우드 배포
+
+resources:
+  # 기본 네임스페이스 및 권한
+  - namespace.yaml
+  - rbac.yaml
+  
+  # 데이터 저장소
+  - redis.yaml
+  
+  # 멀티클라우드 서비스 배포 (클러스터 라벨 포함)
+  - user-service-multicloud.yaml
+  - movie-service-multicloud.yaml
+  - booking-service-multicloud.yaml
+  
+  # API Gateway
+  - api-gateway.yaml
+  
+  # UI 설정 (Istio 트래픽 분산 정보 표시)
+  - ui-configmap.yaml
+  
+  # Istio 트래픽 관리 (DestinationRule & VirtualService)
+  - istio-destinationrules.yaml
+  - istio-virtualservices.yaml
+  
+  # 외부 접근용 VirtualService (istio-system 네임스페이스)
+  - istio-virtualservice.yaml
+  
+  # Istio Gateway 설정
+  - istio-gateway.yaml
+
+namespace: theater-msa
+
+# 공통 라벨 적용
+commonLabels:
+  app.kubernetes.io/name: theater-msa
+  app.kubernetes.io/part-of: microservices-demo
+  app.kubernetes.io/managed-by: kustomize
+
+# 공통 어노테이션 적용  
+commonAnnotations:
+  config.kubernetes.io/origin: "https://github.com/your-org/msa-sample-smov"
+  deployment.kubernetes.io/revision: "1"
+
+# 이미지 변환 규칙 (Harbor Registry 사용)
+images:
+- name: user-service
+  newName: harbor.27.96.156.180.nip.io/theater-msa/user-service
+  newTag: latest
+- name: movie-service
+  newName: harbor.27.96.156.180.nip.io/theater-msa/movie-service
+  newTag: latest  
+- name: booking-service
+  newName: harbor.27.96.156.180.nip.io/theater-msa/booking-service
+  newTag: latest
+- name: api-gateway
+  newName: harbor.27.96.156.180.nip.io/theater-msa/api-gateway
+  newTag: latest
+
+# 리소스 이름에 접두사 추가 (선택사항)
+# namePrefix: theater-
+
+# ConfigMap 생성기 (필요시 사용)
+# configMapGenerator:
+# - name: app-config
+#   literals:
+#   - ENVIRONMENT=production
+#   - LOG_LEVEL=info
+
+# Secret 생성기 (필요시 사용)  
+# secretGenerator:
+# - name: app-secrets
+#   literals:
+#   - DATABASE_PASSWORD=changeme
