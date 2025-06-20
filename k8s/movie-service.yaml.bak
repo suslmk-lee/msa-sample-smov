@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: movie-service
+  namespace: theater-msa
+  labels:
+    app: movie-service
+    tier: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: movie-service
+  template:
+    metadata:
+      labels:
+        app: movie-service
+        tier: backend
+    spec:
+      containers:
+      - name: movie-service
+        image: harbor.27.96.156.180.nip.io/theater-msa/movie-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8082
+        env:
+        - name: CLUSTER_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['cluster-name']
+        envFrom:
+        - configMapRef:
+            name: theater-config
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movie-service
+  namespace: theater-msa
+  labels:
+    app: movie-service
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8082
+    targetPort: 8082
+    protocol: TCP
+  selector:
+    app: movie-service

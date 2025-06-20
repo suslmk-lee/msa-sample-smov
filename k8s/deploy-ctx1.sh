@@ -91,7 +91,7 @@ deploy_ctx1_resources() {
     
     # 3. Redis (단일 Redis, preferredAffinity로 ctx1 우선)
     log_info "3. Redis 배포..."
-    kubectl apply -f redis.yaml
+    kubectl apply -f redis-ctx1-service.yaml
     
     # 4. User Service (멀티클라우드 버전 - ctx1 포함)
     log_info "4. User Service 배포..."

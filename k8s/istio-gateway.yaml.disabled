@@ -1,0 +1,19 @@
+# cp-gateway는 이미 존재하므로 별도 Gateway 생성 불필요
+# theater-msa VirtualService가 기존 cp-gateway를 사용합니다.
+
+# 기존 cp-gateway 정보 확인용 (실제 생성하지 않음)
+# apiVersion: networking.istio.io/v1beta1
+# kind: Gateway
+# metadata:
+#   name: cp-gateway
+#   namespace: istio-system
+# spec:
+#   selector:
+#     istio: ingressgateway
+#   servers:
+#   - port:
+#       number: 80
+#       name: http
+#       protocol: HTTP
+#     hosts:
+#     - "*.27.96.156.180.nip.io"
