@@ -153,14 +153,28 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// API routes with weighted distribution
 	if strings.HasPrefix(r.URL.Path, "/users/") {
-		selectedService := weightedServiceSelect(
-			"user",
-			trafficWeights.UserServiceCtx1Weight,
-			trafficWeights.UserServiceCtx2Weight,
-			"http://user-service:8081",
-			"http://user-service-ctx2:8081",
-		)
-		log.Printf("Routing to user-service: %s", selectedService)
+		var selectedService string
+		forceCluster := r.Header.Get("X-Force-Cluster")
+		
+		if forceCluster == "ctx1" {
+			selectedService = "http://user-service:8081"
+			addToHistory("user", "ctx1")
+			log.Printf("Forced routing to user-service CTX1: %s", selectedService)
+		} else if forceCluster == "ctx2" {
+			selectedService = "http://user-service-ctx2:8081"
+			addToHistory("user", "ctx2")
+			log.Printf("Forced routing to user-service CTX2: %s", selectedService)
+		} else {
+			selectedService = weightedServiceSelect(
+				"user",
+				trafficWeights.UserServiceCtx1Weight,
+				trafficWeights.UserServiceCtx2Weight,
+				"http://user-service:8081",
+				"http://user-service-ctx2:8081",
+			)
+			log.Printf("Weighted routing to user-service: %s", selectedService)
+		}
+		
 		proxy := newReverseProxy(selectedService)
 		proxy.ServeHTTP(w, r)
 		return
