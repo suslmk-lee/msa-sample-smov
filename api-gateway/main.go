@@ -165,19 +165,19 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 			"ctx2",
 		)
 		
-		// Redis 접근용 실제 서비스 선택
+		// Redis 접근용 실제 서비스 선택 - 클러스터별 분리된 서비스 사용
 		if forceCluster == "ctx1" {
-			selectedService = "http://user-service:8081"
+			selectedService = "http://user-service-ctx1.theater-msa.svc.cluster.local:8081"
 			log.Printf("Forced routing to user-service CTX1: %s (traffic signal: %s)", selectedService, trafficCluster)
 		} else if forceCluster == "ctx2" {
-			selectedService = "http://user-service-ctx2:8081"
+			selectedService = "http://user-service-ctx2.theater-msa.svc.cluster.local:8081"
 			log.Printf("Forced routing to user-service CTX2: %s (traffic signal: %s)", selectedService, trafficCluster)
 		} else {
 			// Random인 경우 가중치 기반 선택
 			if trafficCluster == "ctx1" {
 				selectedService = "http://user-service:8081"
 			} else {
-				selectedService = "http://user-service-ctx2:8081"
+				selectedService = "http://user-service:8081"
 			}
 			log.Printf("Weighted routing to user-service: %s", selectedService)
 		}
