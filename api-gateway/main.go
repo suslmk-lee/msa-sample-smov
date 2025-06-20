@@ -42,8 +42,17 @@ type TrafficWeight struct {
 	BookingServiceCtx2Weight int
 }
 
+// TrafficHistory represents recent traffic routing decisions
+type TrafficHistory struct {
+	UserServiceHistory    []string `json:"userServiceHistory"`
+	MovieServiceHistory   []string `json:"movieServiceHistory"`
+	BookingServiceHistory []string `json:"bookingServiceHistory"`
+}
+
 var kubernetesClient *kubernetes.Clientset
 var trafficWeights TrafficWeight
+var trafficHistory TrafficHistory
+var maxHistorySize = 10
 
 func init() {
 	// Kubernetes 클라이언트 초기화
@@ -81,10 +90,32 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-// weightedServiceSelect selects service based on weight
-func weightedServiceSelect(ctx1Weight, ctx2Weight int, ctx1Service, ctx2Service string) string {
+// addToHistory adds a cluster selection to the history for a specific service
+func addToHistory(serviceType string, cluster string) {
+	switch serviceType {
+	case "user":
+		trafficHistory.UserServiceHistory = append(trafficHistory.UserServiceHistory, cluster)
+		if len(trafficHistory.UserServiceHistory) > maxHistorySize {
+			trafficHistory.UserServiceHistory = trafficHistory.UserServiceHistory[1:]
+		}
+	case "movie":
+		trafficHistory.MovieServiceHistory = append(trafficHistory.MovieServiceHistory, cluster)
+		if len(trafficHistory.MovieServiceHistory) > maxHistorySize {
+			trafficHistory.MovieServiceHistory = trafficHistory.MovieServiceHistory[1:]
+		}
+	case "booking":
+		trafficHistory.BookingServiceHistory = append(trafficHistory.BookingServiceHistory, cluster)
+		if len(trafficHistory.BookingServiceHistory) > maxHistorySize {
+			trafficHistory.BookingServiceHistory = trafficHistory.BookingServiceHistory[1:]
+		}
+	}
+}
+
+// weightedServiceSelect selects service based on weight and records the decision
+func weightedServiceSelect(serviceType string, ctx1Weight, ctx2Weight int, ctx1Service, ctx2Service string) string {
 	total := ctx1Weight + ctx2Weight
 	if total == 0 {
+		addToHistory(serviceType, "ctx1")
 		return ctx1Service // fallback
 	}
 
@@ -92,14 +123,17 @@ func weightedServiceSelect(ctx1Weight, ctx2Weight int, ctx1Service, ctx2Service 
 	randomNum, err := rand.Int(rand.Reader, big.NewInt(int64(total)))
 	if err != nil {
 		log.Printf("Failed to generate random number, falling back to ctx1: %v", err)
+		addToHistory(serviceType, "ctx1")
 		return ctx1Service
 	}
 
 	if randomNum.Int64() < int64(ctx1Weight) {
 		log.Printf("Selected %s (weight: %d/%d)", ctx1Service, ctx1Weight, total)
+		addToHistory(serviceType, "ctx1")
 		return ctx1Service
 	} else {
 		log.Printf("Selected %s (weight: %d/%d)", ctx2Service, ctx2Weight, total)
+		addToHistory(serviceType, "ctx2")
 		return ctx2Service
 	}
 }
@@ -120,6 +154,7 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 	// API routes with weighted distribution
 	if strings.HasPrefix(r.URL.Path, "/users/") {
 		selectedService := weightedServiceSelect(
+			"user",
 			trafficWeights.UserServiceCtx1Weight,
 			trafficWeights.UserServiceCtx2Weight,
 			"http://user-service:8081",
@@ -133,6 +168,7 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 	
 	if strings.HasPrefix(r.URL.Path, "/movies/") {
 		selectedService := weightedServiceSelect(
+			"movie",
 			trafficWeights.MovieServiceCtx1Weight,
 			trafficWeights.MovieServiceCtx2Weight,
 			"http://movie-service-ctx1:8082",
@@ -146,6 +182,7 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 	
 	if strings.HasPrefix(r.URL.Path, "/bookings/") {
 		selectedService := weightedServiceSelect(
+			"booking",
 			trafficWeights.BookingServiceCtx1Weight,
 			trafficWeights.BookingServiceCtx2Weight,
 			"http://booking-service-ctx1:8083",
@@ -169,6 +206,12 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.HasPrefix(r.URL.Path, "/traffic-history") {
+		log.Printf("Serving traffic history: %s", r.URL.Path)
+		getTrafficHistory(w, r)
+		return
+	}
+
 	// Static files fallback
 	http.FileServer(http.Dir("ui")).ServeHTTP(w, r)
 }
@@ -177,6 +220,12 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 func getTrafficWeights(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(trafficWeights)
+}
+
+// getTrafficHistory returns recent traffic routing history
+func getTrafficHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(trafficHistory)
 }
 
 // getDeploymentStatus returns deployment status information for Kubernetes
