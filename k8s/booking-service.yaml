@@ -16,7 +16,6 @@ spec:
       labels:
         app: booking-service
         tier: backend
-        cluster: ctx2
     spec:
       containers:
       - name: booking-service
@@ -24,6 +23,11 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8083
+        env:
+        - name: CLUSTER_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['cluster-name']
         envFrom:
         - configMapRef:
             name: theater-config
@@ -34,16 +38,6 @@ spec:
           limits:
             memory: "128Mi"
             cpu: "100m"
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 1
-            preference:
-              matchExpressions:
-              - key: cluster-name
-                operator: In
-                values:
-                - ctx2
 ---
 apiVersion: v1
 kind: Service
