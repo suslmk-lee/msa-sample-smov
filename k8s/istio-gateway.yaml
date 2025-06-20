@@ -1,2 +1,0 @@
-# cp-gateway는 이미 존재하므로 별도 Gateway 생성 불필요
-# theater-msa VirtualService가 기존 cp-gateway를 사용합니다.

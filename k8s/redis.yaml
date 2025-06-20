@@ -39,10 +39,14 @@ spec:
         - |
           redis-server --daemonize yes
           sleep 3
-          redis-cli HSET users:1 id 1 name "홍길동" email "hong@example.com"
-          redis-cli HSET users:2 id 2 name "이순신" email "sunshin@example.com"  
-          redis-cli HSET users:3 id 3 name "김유신" email "yusin@example.com"
-          redis-cli SADD users "users:1" "users:2" "users:3"
+          echo "Loading initial user data..."
+          redis-cli SET "user:1" '{"id":"1","name":"홍길동","email":"hong@example.com"}'
+          redis-cli SET "user:2" '{"id":"2","name":"이순신","email":"sunshin@example.com"}'
+          redis-cli SET "user:3" '{"id":"3","name":"김유신","email":"yusin@example.com"}'
+          echo "Loading initial movie data..."
+          redis-cli SET "movie:1" '{"id":"1","title":"어벤져스","genre":"액션","year":2019}'
+          redis-cli SET "movie:2" '{"id":"2","title":"겨울왕국","genre":"애니메이션","year":2019}'
+          redis-cli SET "movie:3" '{"id":"3","title":"기생충","genre":"드라마","year":2019}'
           echo "Initial data loaded successfully"
           pkill redis-server
           sleep 1
@@ -54,17 +58,9 @@ spec:
         emptyDir: {}
       affinity:
         nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 1
-            preference:
-              matchExpressions:
-              - key: cluster-name
-                operator: In
-                values:
-                - ctx1
-          - weight: 1
-            preference:
-              matchExpressions:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
               - key: cluster-name
                 operator: In
                 values:

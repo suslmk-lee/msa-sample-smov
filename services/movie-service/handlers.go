@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/go-redis/redis/v8"
@@ -15,6 +16,11 @@ func moviesHandler(w http.ResponseWriter, r *http.Request) {
 	// Remove "movies/" prefix if present (from API Gateway routing)
 	path = strings.TrimPrefix(path, "movies/")
 	w.Header().Set("Content-Type", "application/json")
+	
+	// 실제 라우팅 정보를 헤더에 추가
+	w.Header().Set("X-Service-Cluster", getClusterName())
+	w.Header().Set("X-Pod-Name", os.Getenv("HOSTNAME"))
+	w.Header().Set("X-Service-Name", "movie-service")
 
 	switch r.Method {
 	case http.MethodGet:
@@ -76,4 +82,23 @@ func getAllMoviesHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(movies)
+}
+
+// getClusterName은 현재 파드가 실행 중인 클러스터를 판단합니다
+func getClusterName() string {
+	// 환경변수에서 클러스터명 확인
+	if cluster := os.Getenv("CLUSTER_NAME"); cluster != "" {
+		return cluster
+	}
+	
+	// 파드명에서 클러스터 정보 추출
+	hostname := os.Getenv("HOSTNAME")
+	if strings.Contains(hostname, "ctx1") {
+		return "ctx1"
+	} else if strings.Contains(hostname, "ctx2") {
+		return "ctx2"
+	}
+	
+	// 기본값
+	return "unknown"
 }
