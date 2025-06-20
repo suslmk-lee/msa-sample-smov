@@ -1,10 +1,12 @@
 #!/bin/bash
 
 # Theater MSA 샘플 배포 일괄 삭제 스크립트
-# Usage: ./cleanup.sh [--all]
+# Usage: ./cleanup.sh [--all|--ctx1|--ctx2]
 # Options:
-#   --all: 모든 클러스터에서 삭제 (ctx1, ctx2)
-#   기본값: 현재 컨텍스트에서만 삭제
+#   --all: 모든 클러스터에서 삭제 (ctx1, ctx2) - 기본값
+#   --ctx1: CTX1 클러스터에서만 삭제
+#   --ctx2: CTX2 클러스터에서만 삭제
+#   --current: 현재 컨텍스트에서만 삭제
 
 set -e
 
@@ -172,60 +174,149 @@ cleanup_context() {
     fi
 }
 
+# 컨텍스트 존재 확인
+check_context_exists() {
+    local context=$1
+    if ! kubectl config get-contexts $context >/dev/null 2>&1; then
+        log_warning "$context 컨텍스트를 찾을 수 없습니다."
+        return 1
+    fi
+    return 0
+}
+
+# 모든 클러스터에서 삭제
+cleanup_all_clusters() {
+    log_info "=== 모든 클러스터에서 삭제 (ctx1, ctx2) ==="
+    
+    local ctx1_exists=false
+    local ctx2_exists=false
+    
+    # 컨텍스트 존재 확인
+    if check_context_exists "ctx1"; then
+        ctx1_exists=true
+    fi
+    
+    if check_context_exists "ctx2"; then
+        ctx2_exists=true
+    fi
+    
+    if [ "$ctx1_exists" = false ] && [ "$ctx2_exists" = false ]; then
+        log_error "ctx1, ctx2 컨텍스트를 모두 찾을 수 없습니다."
+        log_info "다음 명령어로 컨텍스트를 설정하세요:"
+        echo "  kubectl config rename-context <your-ctx1-context> ctx1"
+        echo "  kubectl config rename-context <your-ctx2-context> ctx2"
+        exit 1
+    fi
+    
+    # 전체 삭제 확인
+    echo
+    log_warning "양쪽 클러스터(CTX1, CTX2)에서 Theater MSA 리소스를 모두 삭제합니다."
+    log_warning "이 작업은 되돌릴 수 없습니다!"
+    read -p "정말로 계속하시겠습니까? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_info "삭제가 취소되었습니다."
+        exit 0
+    fi
+    
+    # CTX1에서 삭제
+    if [ "$ctx1_exists" = true ]; then
+        echo
+        log_info "--- CTX1 클러스터 삭제 시작 ---"
+        cleanup_context "ctx1"
+        log_success "CTX1 삭제 완료"
+    fi
+    
+    # CTX2에서 삭제
+    if [ "$ctx2_exists" = true ]; then
+        echo
+        log_info "--- CTX2 클러스터 삭제 시작 ---"
+        cleanup_context "ctx2"
+        log_success "CTX2 삭제 완료"
+    fi
+    
+    echo
+    log_success "=== 모든 클러스터 삭제 완료 ==="
+}
+
 # 메인 함수
 main() {
     log_info "Theater MSA 샘플 배포 일괄 삭제 스크립트"
     echo "================================================="
     
     # 파라미터 확인
-    if [ "$1" = "--all" ]; then
-        log_info "모든 클러스터에서 삭제 (ctx1, ctx2)"
-        
-        # ctx1에서 삭제
-        if kubectl config get-contexts ctx1 >/dev/null 2>&1; then
-            cleanup_context "ctx1"
-        else
-            log_warning "ctx1 컨텍스트를 찾을 수 없습니다."
-        fi
-        
-        echo
-        
-        # ctx2에서 삭제
-        if kubectl config get-contexts ctx2 >/dev/null 2>&1; then
-            cleanup_context "ctx2"
-        else
-            log_warning "ctx2 컨텍스트를 찾을 수 없습니다."
-        fi
-        
-    elif [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-        echo "사용법: $0 [--all]"
-        echo
-        echo "옵션:"
-        echo "  --all      모든 클러스터(ctx1, ctx2)에서 삭제"
-        echo "  --help     이 도움말 표시"
-        echo
-        echo "기본값: 현재 컨텍스트에서만 삭제"
-        exit 0
-        
-    else
-        # 현재 컨텍스트에서만 삭제
-        local current_context=$(get_current_context)
-        log_info "현재 컨텍스트에서 삭제: $current_context"
-        
-        if [ "$current_context" = "unknown" ]; then
-            log_error "kubectl 컨텍스트를 확인할 수 없습니다."
+    case "$1" in
+        "--all"|"")
+            # 기본값: 모든 클러스터에서 삭제
+            log_info "모든 클러스터에서 삭제 (ctx1, ctx2)"
+            cleanup_all_clusters
+            ;;
+        "--ctx1")
+            log_info "CTX1 클러스터에서만 삭제"
+            if check_context_exists "ctx1"; then
+                cleanup_context "ctx1"
+            else
+                exit 1
+            fi
+            ;;
+        "--ctx2")
+            log_info "CTX2 클러스터에서만 삭제"
+            if check_context_exists "ctx2"; then
+                cleanup_context "ctx2"
+            else
+                exit 1
+            fi
+            ;;
+        "--current")
+            # 현재 컨텍스트에서만 삭제
+            local current_context=$(get_current_context)
+            log_info "현재 컨텍스트에서 삭제: $current_context"
+            
+            if [ "$current_context" = "unknown" ]; then
+                log_error "kubectl 컨텍스트를 확인할 수 없습니다."
+                exit 1
+            fi
+            
+            cleanup_context "$current_context"
+            ;;
+        "--help"|"-h")
+            echo "사용법: $0 [옵션]"
+            echo
+            echo "옵션:"
+            echo "  --all      모든 클러스터(ctx1, ctx2)에서 삭제 (기본값)"
+            echo "  --ctx1     CTX1 클러스터에서만 삭제"
+            echo "  --ctx2     CTX2 클러스터에서만 삭제"
+            echo "  --current  현재 컨텍스트에서만 삭제"
+            echo "  --help     이 도움말 표시"
+            echo
+            echo "예시:"
+            echo "  $0                # 모든 클러스터에서 삭제"
+            echo "  $0 --all          # 모든 클러스터에서 삭제"
+            echo "  $0 --ctx1         # CTX1에서만 삭제"
+            echo "  $0 --ctx2         # CTX2에서만 삭제"
+            echo "  $0 --current      # 현재 컨텍스트에서만 삭제"
+            exit 0
+            ;;
+        *)
+            log_error "알 수 없는 옵션: $1"
+            echo "사용법: $0 [--all|--ctx1|--ctx2|--current|--help]"
             exit 1
-        fi
-        
-        cleanup_context "$current_context"
-    fi
+            ;;
+    esac
     
     echo
     log_success "=== 삭제 작업 완료 ==="
     log_info "남은 리소스 확인을 위해 다음 명령어를 실행하세요:"
-    echo "  kubectl get all -n theater-msa"
-    echo "  kubectl get vs,dr -n theater-msa"
-    echo "  kubectl get vs -n istio-system theater-msa"
+    echo "  # CTX1 확인"
+    echo "  kubectl get all,vs,dr -n theater-msa --context=ctx1"
+    echo "  kubectl get vs -n istio-system theater-msa --context=ctx1"
+    echo
+    echo "  # CTX2 확인"
+    echo "  kubectl get all,vs,dr -n theater-msa --context=ctx2"
+    echo
+    echo "  # 네임스페이스 확인"
+    echo "  kubectl get namespace theater-msa --context=ctx1"
+    echo "  kubectl get namespace theater-msa --context=ctx2"
 }
 
 # 스크립트 실행

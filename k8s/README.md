@@ -678,11 +678,16 @@ curl -H "x-canary: true" http://theater.$DOMAIN/users/
 
 #### 자동 정리 스크립트 사용 (권장)
 ```bash
-# 현재 컨텍스트에서만 삭제
+# 모든 클러스터(ctx1, ctx2)에서 일괄 삭제 (기본값)
 ./cleanup.sh
-
-# 모든 클러스터(ctx1, ctx2)에서 일괄 삭제
 ./cleanup.sh --all
+
+# 개별 클러스터에서만 삭제
+./cleanup.sh --ctx1     # CTX1에서만 삭제
+./cleanup.sh --ctx2     # CTX2에서만 삭제
+
+# 현재 컨텍스트에서만 삭제
+./cleanup.sh --current
 
 # 도움말 확인
 ./cleanup.sh --help
@@ -707,12 +712,16 @@ kubectl delete vs theater-msa -n istio-system --context ctx1
 
 #### 정리 완료 확인
 ```bash
-# 남은 리소스 확인
-kubectl get all,vs,dr -n theater-msa
-kubectl get vs -n istio-system theater-msa
+# 멀티클러스터 남은 리소스 확인
+kubectl get all,vs,dr -n theater-msa --context=ctx1
+kubectl get all,vs,dr -n theater-msa --context=ctx2
+
+# 외부 VirtualService 확인
+kubectl get vs -n istio-system theater-msa --context=ctx1
 
 # 네임스페이스 확인
-kubectl get namespace theater-msa
+kubectl get namespace theater-msa --context=ctx1
+kubectl get namespace theater-msa --context=ctx2
 ```
 
 ## 📚 교육 포인트
