@@ -1,0 +1,40 @@
+# Multi-cluster access for API Gateway
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ctx2-kubeconfig
+  namespace: theater-msa
+type: Opaque
+data:
+  kubeconfig: # Base64 encoded kubeconfig for CTX2
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: multicluster-reader
+  namespace: theater-msa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: multicluster-reader-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: multicluster-reader-binding
+subjects:
+- kind: ServiceAccount
+  name: multicluster-reader
+  namespace: theater-msa
+roleRef:
+  kind: ClusterRole
+  name: multicluster-reader-role
+  apiGroup: rbac.authorization.k8s.io
