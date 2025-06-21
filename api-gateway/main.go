@@ -339,7 +339,7 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 		pods, err := kubernetesClient.CoreV1().Pods("theater-msa").List(context.TODO(), metav1.ListOptions{})
 		if err == nil {
 			for _, pod := range pods.Items {
-				deployment := createDeploymentInfo(pod)
+				deployment := createDeploymentInfo(&pod)
 				if deployment.Service != "unknown" {
 					allDeployments = append(allDeployments, deployment)
 				}
