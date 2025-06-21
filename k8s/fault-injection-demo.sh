@@ -46,6 +46,7 @@ usage() {
     echo "  status          현재 장애 주입 상태 확인"
     echo "  test            장애 주입 테스트 (curl 요청)"
     echo "  cleanup         모든 Fault Injection 설정 제거"
+    echo "  circuit         Circuit Breaker 전용 테스트 (연속 오류 발생)"
     echo ""
     echo "OPTIONS:"
     echo "  --context CTX   kubectl context 지정 (기본값: ctx1)"
@@ -99,43 +100,65 @@ setup_fault_injection() {
     echo "  - block: Booking Service 클러스터 차단"
 }
 
-# Movie Service CTX2 라우팅시에만 지연 주입
+# Movie Service 3초 지연 장애 주입
 inject_delay_fault() {
-    log "Movie Service CTX2 라우팅시에만 5초 지연 장애를 주입합니다..."
+    log "Movie Service에 3초 지연 장애를 주입합니다..."
     
-    # API Gateway에 DELAY_INJECTION_MODE 환경변수 설정
-    k patch deployment api-gateway -n theater-msa --type='json' -p='[
-      {
-        "op": "add",
-        "path": "/spec/template/spec/containers/0/env/-",
-        "value": {
-          "name": "DELAY_INJECTION_MODE",
-          "value": "true"
-        }
-      }
-    ]'
+    # 기존 VirtualService 백업
+    k get vs movie-service-vs -n theater-msa -o yaml > /tmp/movie-service-vs-backup.yaml
     
-    # Pod 재시작 대기
-    info "API Gateway Pod 재시작 중..."
-    k rollout status deployment/api-gateway -n theater-msa --timeout=60s
+    # 3초 지연 적용하는 VirtualService 적용
+    k apply -f - <<EOF
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: movie-service-vs
+  namespace: theater-msa
+spec:
+  hosts:
+  - movie-service
+  http:
+  - match:
+    - headers:
+        x-canary:
+          exact: "true"
+    route:
+    - destination:
+        host: movie-service
+        subset: ctx1
+      weight: 100
+  - fault:
+      delay:
+        percentage:
+          value: 70.0
+        fixedDelay: 3s
+    route:
+    - destination:
+        host: movie-service
+        subset: ctx1
+      weight: 30
+    - destination:
+        host: movie-service
+        subset: ctx2
+      weight: 70
+EOF
     
-    log "CTX2 라우팅 지연 장애가 주입되었습니다!"
-    warn "CTX2(빨간색 신호등)로 라우팅되는 Movie 요청에만 5초 지연이 적용됩니다."
+    log "Movie Service에 3초 지연 장애가 주입되었습니다!"
+    warn "요청의 70%에 3초 지연이 적용됩니다."
     info "웹 UI에서 영화 목록 로딩을 여러 번 시도해보세요:"
-    echo "  - CTX1(녹색) 라우팅: 빠른 응답 (30% 확률)"
-    echo "  - CTX2(빨간색) 라우팅: 5초 지연 (70% 확률)"
-    echo "  - 신호등과 지연이 정확히 일치합니다!"
+    echo "  - 30% 확률: 빠른 응답"
+    echo "  - 70% 확률: 3초 지연"
     echo "  - URL: $APP_URL"
 }
 
-# User Service HTTP 오류 장애 주입
+# User Service HTTP 오류 장애 주입 (Circuit Breaker 트리거용)
 inject_error_fault() {
-    log "User Service에 50% HTTP 500 오류를 주입합니다..."
+    log "User Service CTX2에 100% HTTP 500 오류를 주입합니다 (Circuit Breaker 테스트)..."
     
     # 기존 VirtualService 백업
     k get vs user-service-vs -n theater-msa -o yaml > /tmp/user-service-vs-backup.yaml
     
-    # Fault Injection VirtualService 적용
+    # CTX2에 집중된 트래픽으로 Circuit Breaker 트리거
     k apply -f - <<EOF
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -146,25 +169,36 @@ spec:
   hosts:
   - user-service
   http:
-  - fault:
-      abort:
-        percentage:
-          value: 50.0
-        httpStatus: 500
+  - match:
+    - headers:
+        x-canary:
+          exact: "true"
     route:
     - destination:
         host: user-service
         subset: ctx1
-      weight: 70
+      weight: 100
+  - fault:
+      abort:
+        percentage:
+          value: 100.0
+        httpStatus: 500
+    route:
     - destination:
         host: user-service
         subset: ctx2
-      weight: 30
+      weight: 100
 EOF
     
-    log "User Service HTTP 오류 장애가 주입되었습니다!"
-    warn "User Service 요청의 50%가 HTTP 500 오류를 반환합니다."
-    info "웹 UI에서 사용자 목록 로딩을 여러 번 시도해보세요: $APP_URL"
+    log "User Service CTX2에 100% HTTP 500 오류가 주입되었습니다!"
+    warn "모든 User Service 요청이 CTX2로 라우팅되어 100% 실패합니다."
+    info "약 3-5회 요청 후 Circuit Breaker가 CTX2를 격리합니다."
+    echo ""
+    echo "테스트 방법:"
+    echo "1. 웹 UI에서 User 섹션 새로고침을 연속으로 클릭"
+    echo "2. 처음 3-5회는 모두 오류 발생"
+    echo "3. Circuit Breaker 작동 후 30초간 모든 요청이 CTX1으로 우회"
+    echo "4. URL: $APP_URL"
 }
 
 # Booking Service 클러스터 차단
@@ -199,33 +233,14 @@ EOF
 
 # 모든 장애 복구
 recover_all_faults() {
-    log "모든 장애를 복구하고 원본 설정을 복원합니다..."
+    log "모든 장애를 복구하고 원본 VirtualService를 복원합니다..."
     
-    # 원본 내부 VirtualService 복원
-    info "내부 VirtualService 복원 중..."
+    # 원본 VirtualService 복원
+    info "원본 VirtualService 복원 중..."
     k apply -f istio-virtualservices.yaml
     
-    # API Gateway에서 DELAY_INJECTION_MODE 환경변수 제거
-    info "API Gateway 지연 주입 모드 비활성화 중..."
-    k patch deployment api-gateway -n theater-msa --type='json' -p='[
-      {
-        "op": "remove",
-        "path": "/spec/template/spec/containers/0/env",
-        "value": [
-          {
-            "name": "DELAY_INJECTION_MODE",
-            "value": "true"
-          }
-        ]
-      }
-    ]' 2>/dev/null || true
-    
-    # 환경변수가 있는 경우 직접 제거
+    # API Gateway 환경변수 정리 (있을 경우)
     k set env deployment/api-gateway -n theater-msa DELAY_INJECTION_MODE- 2>/dev/null || true
-    
-    # Pod 재시작 대기
-    info "API Gateway Pod 재시작 중..."
-    k rollout status deployment/api-gateway -n theater-msa --timeout=60s
     
     # 백업 파일 정리
     rm -f /tmp/*-vs-backup.yaml
@@ -235,7 +250,6 @@ recover_all_faults() {
     echo "  - User Service: 70% CTX1, 30% CTX2"
     echo "  - Movie Service: 30% CTX1, 70% CTX2"
     echo "  - Booking Service: 50% CTX1, 50% CTX2"
-    echo "  - CTX2 라우팅 지연이 비활성화되었습니다"
 }
 
 # 현재 상태 확인
@@ -296,6 +310,118 @@ test_fault_injection() {
     done
 }
 
+# Circuit Breaker 전용 테스트 (확실한 트리거)
+test_circuit_breaker() {
+    log "Circuit Breaker 테스트를 위한 전용 시나리오를 실행합니다..."
+    
+    # 먼저 Circuit Breaker 설정 적용
+    info "개선된 Circuit Breaker 설정 적용 중..."
+    k apply -f istio-circuit-breaker.yaml
+    
+    # 잠시 대기 (설정 적용)
+    sleep 5
+    
+    # User Service에 30% 오류율 적용으로 Circuit Breaker 테스트
+    log "User Service에 30% 오류율을 적용하여 Circuit Breaker 테스트..."
+    
+    k get vs user-service-vs -n theater-msa -o yaml > /tmp/user-service-vs-backup.yaml
+    
+    k apply -f - <<EOF
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: user-service-vs
+  namespace: theater-msa
+spec:
+  hosts:
+  - user-service
+  http:
+  - match:
+    - headers:
+        x-canary:
+          exact: "true"
+    route:
+    - destination:
+        host: user-service
+        subset: ctx1
+      weight: 100
+  - fault:
+      abort:
+        percentage:
+          value: 30.0
+        httpStatus: 500
+    route:
+    - destination:
+        host: user-service
+        subset: ctx1
+      weight: 70
+    - destination:
+        host: user-service
+        subset: ctx2
+      weight: 30
+EOF
+    
+    log "Circuit Breaker 테스트 환경이 준비되었습니다!"
+    echo ""
+    warn "Circuit Breaker 동작 확인 방법:"
+    echo "1. 웹 UI에서 User 섹션을 연속으로 10-20회 새로고침"
+    echo "2. 처음에는 70% 성공, 30% 오류가 랜덤하게 발생"
+    echo "3. 연속 2회 오류 발생시 Circuit Breaker 작동"
+    echo "4. Circuit Breaker 작동 후: 30초간 모든 요청 성공 (오류 인스턴스 격리)"
+    echo "5. 30초 후: 다시 테스트 시작 (복구 시도)"
+    echo ""
+    info "자동화된 테스트를 실행하시겠습니까? (y/n)"
+    read -r response
+    
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        info "자동화된 Circuit Breaker 테스트를 시작합니다..."
+        
+        echo ""
+        echo "=== Circuit Breaker 트리거 테스트 (30% 오류율) ==="
+        success_count=0
+        error_count=0
+        for i in {1..20}; do
+            echo -n "요청 $i: "
+            if response=$(curl -k -s -w "HTTP_%{http_code}_%{time_total}s" "$APP_URL/users/" 2>/dev/null); then
+                if [[ "$response" == *"HTTP_200"* ]]; then
+                    echo "$response ✓ (성공: $((++success_count)))"
+                else
+                    echo "$response ✗ (오류: $((++error_count)))"
+                fi
+            else
+                echo "요청 실패 ✗ (오류: $((++error_count)))"
+            fi
+            sleep 1
+        done
+        
+        echo ""
+        echo "결과: 성공 $success_count회, 오류 $error_count회"
+        
+        echo ""
+        echo "=== Circuit Breaker 복구 확인 (30초 후) ==="
+        info "30초 대기 중... (Circuit Breaker 복구 시간)"
+        sleep 30
+        
+        for i in {1..5}; do
+            echo -n "복구 테스트 $i: "
+            if response=$(curl -k -s -w "HTTP_%{http_code}_%{time_total}s" "$APP_URL/users/" 2>/dev/null); then
+                if [[ "$response" == *"HTTP_200"* ]]; then
+                    echo "$response ✓"
+                else
+                    echo "$response ✗"
+                fi
+            else
+                echo "요청 실패 ✗"
+            fi
+            sleep 2
+        done
+    fi
+    
+    echo ""
+    info "Circuit Breaker 테스트 완료!"
+    echo "URL: $APP_URL"
+}
+
 # 정리
 cleanup_fault_injection() {
     log "모든 Fault Injection 설정을 제거합니다..."
@@ -337,6 +463,9 @@ case "${COMMAND:-help}" in
         ;;
     cleanup)
         cleanup_fault_injection
+        ;;
+    circuit)
+        test_circuit_breaker
         ;;
     help|*)
         usage
