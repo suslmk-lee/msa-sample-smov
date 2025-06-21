@@ -349,7 +349,11 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// 한국 시간 설정
-	loc, _ := time.LoadLocation("Asia/Seoul")
+	loc, err := time.LoadLocation("Asia/Seoul")
+	if err != nil {
+		loc = time.UTC // fallback to UTC if timezone loading fails
+		log.Printf("Failed to load Asia/Seoul timezone, using UTC: %v", err)
+	}
 	
 	// Add CTX2 services information (based on actual deployment status)
 	ctx2Services := []DeploymentInfo{
@@ -460,7 +464,11 @@ func createDeploymentInfo(pod metav1.Object) DeploymentInfo {
 	}
 
 	// 한국 시간 설정
-	loc, _ := time.LoadLocation("Asia/Seoul")
+	loc, err := time.LoadLocation("Asia/Seoul")
+	if err != nil {
+		loc = time.UTC // fallback to UTC if timezone loading fails
+		log.Printf("Failed to load Asia/Seoul timezone, using UTC: %v", err)
+	}
 	
 	return DeploymentInfo{
 		Service:     serviceName,
