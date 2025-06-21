@@ -15,6 +15,7 @@ import (
 	"time"
 
 	istioclient "istio.io/client-go/pkg/clientset/versioned"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -402,15 +403,36 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 
 // createDeploymentInfo creates deployment info from pod
 func createDeploymentInfo(pod metav1.Object) DeploymentInfo {
-	podName := pod.GetName()
-	status := "Running" // Simplified for demo
+	// Pod 인터페이스에서 실제 Pod 객체로 타입 변환
+	actualPod, ok := pod.(*v1.Pod)
+	if !ok {
+		log.Printf("Failed to convert to Pod object")
+		return DeploymentInfo{Service: "unknown"}
+	}
+	
+	podName := actualPod.GetName()
+	status := string(actualPod.Status.Phase)
+	nodeName := actualPod.Spec.NodeName // 실제 노드명 사용
+	
+	// 컨테이너 상태 확인
+	if actualPod.Status.Phase == v1.PodRunning {
+		allReady := true
+		for _, containerStatus := range actualPod.Status.ContainerStatuses {
+			if !containerStatus.Ready {
+				allReady = false
+				break
+			}
+		}
+		if !allReady {
+			status = "Not Ready"
+		}
+	}
 	
 	// Determine service type and cluster
 	serviceName := "unknown"
 	cluster := "ctx1" // API Gateway is in CTX1
 	port := "unknown"
 	icon := "❓"
-	nodeName := "navercloud-worker-node-1"
 
 	if strings.Contains(podName, "user-service") {
 		serviceName = "User Service"
@@ -437,10 +459,10 @@ func createDeploymentInfo(pod metav1.Object) DeploymentInfo {
 	return DeploymentInfo{
 		Service:     serviceName,
 		Cluster:     cluster,
-		Namespace:   pod.GetNamespace(),
+		Namespace:   actualPod.GetNamespace(),
 		PodName:     podName,
-		NodeName:    nodeName,
-		Status:      status,
+		NodeName:    nodeName, // 실제 노드명 사용
+		Status:      status,   // 실제 상태 사용
 		Port:        port,
 		Icon:        icon,
 		LastChecked: time.Now().Format("2006-01-02 15:04:05"),
