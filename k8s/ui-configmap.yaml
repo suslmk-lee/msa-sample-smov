@@ -664,6 +664,11 @@ data:
         stroke: #38a169;
     }
 
+    .service-node.gateway {
+        fill: #ed8936;
+        stroke: #dd6b20;
+    }
+
     .service-label {
         font-family: 'Segoe UI', sans-serif;
         font-size: 12px;
@@ -1243,22 +1248,34 @@ data:
         svg.setAttribute('width', svgWidth);
         svg.setAttribute('height', svgHeight);
         
-        // 화살표 마커 정의
+        // 화살표 마커 정의 (각 트래픽 유형별)
         const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-        marker.setAttribute('id', 'arrowhead');
-        marker.setAttribute('markerWidth', '10');
-        marker.setAttribute('markerHeight', '7');
-        marker.setAttribute('refX', '9');
-        marker.setAttribute('refY', '3.5');
-        marker.setAttribute('orient', 'auto');
         
-        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
-        polygon.setAttribute('fill', '#4299e1');
+        const markerTypes = [
+            { id: 'arrowhead-external', color: '#48bb78' },
+            { id: 'arrowhead-internal', color: '#4299e1' },
+            { id: 'arrowhead-cross-cluster', color: '#ed8936' },
+            { id: 'arrowhead-inactive', color: '#cbd5e0' }
+        ];
         
-        marker.appendChild(polygon);
-        defs.appendChild(marker);
+        markerTypes.forEach(markerType => {
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', markerType.id);
+            marker.setAttribute('markerWidth', '12');
+            marker.setAttribute('markerHeight', '8');
+            marker.setAttribute('refX', '11');
+            marker.setAttribute('refY', '4');
+            marker.setAttribute('orient', 'auto');
+            marker.setAttribute('markerUnits', 'strokeWidth');
+            
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', '0 0, 12 4, 0 8');
+            polygon.setAttribute('fill', markerType.color);
+            
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+        });
+        
         svg.appendChild(defs);
         
         // 클러스터 위치 정의
@@ -1287,17 +1304,16 @@ data:
                 const key = `${service.name}-${cluster}`;
                 const pos = servicePositions[key];
                 if (pos) {
+                    const nodeType = service.name.includes('gateway') ? 'gateway' : 'service';
                     serviceNodes[key] = drawServiceNode(svg, key, service.icon, 
-                                                     service.name, pos.x, pos.y, 'service');
+                                                     service.name, pos.x, pos.y, nodeType);
                 }
             });
         });
         
-        // 트래픽 흐름 그리기
+        // 트래픽 흐름 그리기 (활성 및 비활성 모두)
         topology.trafficFlow.forEach(flow => {
-            if (flow.isActive && flow.weight > 0) {
-                drawTrafficFlow(svg, flow, servicePositions, clusterPositions);
-            }
+            drawTrafficFlow(svg, flow, servicePositions, clusterPositions);
         });
         
         // 범례 추가
@@ -1365,6 +1381,7 @@ data:
         
         // 각 서비스별 위치 (CTX1, CTX2)
         const serviceOffsets = {
+            'eastwest-gateway': { ctx1: { x: 220, y: 120 }, ctx2: { x: 120, y: 120 } },
             'user-service': { ctx1: { x: 80, y: 180 }, ctx2: { x: 80, y: 180 } },
             'movie-service': { ctx1: { x: 220, y: 180 }, ctx2: { x: 80, y: 280 } },
             'booking-service': { ctx1: { x: 80, y: 280 }, ctx2: { x: 80, y: 380 } },
@@ -1403,27 +1420,76 @@ data:
         
         if (!fromPos || !toPos) return;
         
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', fromPos.x + 25);
-        line.setAttribute('y1', fromPos.y);
-        line.setAttribute('x2', toPos.x - 25);
-        line.setAttribute('y2', toPos.y);
-        line.setAttribute('class', `traffic-flow ${flow.flowType} ${flow.isActive ? 'active' : 'inactive'}`);
+        // 노드 반지름을 고려한 시작점과 끝점 계산
+        const nodeRadius = 25;
+        const dx = toPos.x - fromPos.x;
+        const dy = toPos.y - fromPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance === 0) return;
+        
+        const unitX = dx / distance;
+        const unitY = dy / distance;
+        
+        const startX = fromPos.x + unitX * nodeRadius;
+        const startY = fromPos.y + unitY * nodeRadius;
+        const endX = toPos.x - unitX * nodeRadius;
+        const endY = toPos.y - unitY * nodeRadius;
+        
+        // 화살표가 있는 선 그리기
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        let pathData;
+        
+        // 클러스터 간 연결의 경우 곡선으로 표현
+        if (flow.flowType === 'cross-cluster') {
+            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
+            const controlY = midY - 50; // 곡선의 높이 조정
+            pathData = `M ${startX} ${startY} Q ${midX} ${controlY} ${endX} ${endY}`;
+        } else {
+            pathData = `M ${startX} ${startY} L ${endX} ${endY}`;
+        }
+        
+        path.setAttribute('d', pathData);
+        path.setAttribute('class', `traffic-flow ${flow.flowType} ${flow.isActive ? 'active' : 'inactive'}`);
         
         // 가중치에 따른 선 굵기 조정
-        const strokeWidth = Math.max(1, Math.min(8, flow.weight / 10));
-        line.setAttribute('stroke-width', strokeWidth);
+        const strokeWidth = Math.max(2, Math.min(8, flow.weight / 15));
+        path.setAttribute('stroke-width', strokeWidth);
         
-        svg.appendChild(line);
+        // 화살표 마커 설정 (활성/비활성 상태에 따라)
+        const markerId = flow.isActive ? `arrowhead-${flow.flowType}` : 'arrowhead-inactive';
+        path.setAttribute('marker-end', `url(#${markerId})`);
+        
+        svg.appendChild(path);
         
         // 가중치 레이블
         if (flow.weight > 0) {
-            const midX = (fromPos.x + toPos.x) / 2;
-            const midY = (fromPos.y + toPos.y) / 2 - 10;
+            let labelX, labelY;
+            
+            if (flow.flowType === 'cross-cluster') {
+                labelX = (startX + endX) / 2;
+                labelY = (startY + endY) / 2 - 40;
+            } else {
+                labelX = (startX + endX) / 2;
+                labelY = (startY + endY) / 2 - 15;
+            }
+            
+            // 배경 사각형
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', labelX - 15);
+            rect.setAttribute('y', labelY - 10);
+            rect.setAttribute('width', 30);
+            rect.setAttribute('height', 16);
+            rect.setAttribute('fill', 'white');
+            rect.setAttribute('stroke', '#cbd5e0');
+            rect.setAttribute('stroke-width', 1);
+            rect.setAttribute('rx', 3);
+            svg.appendChild(rect);
             
             const weightText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            weightText.setAttribute('x', midX);
-            weightText.setAttribute('y', midY);
+            weightText.setAttribute('x', labelX);
+            weightText.setAttribute('y', labelY + 3);
             weightText.setAttribute('class', 'traffic-weight');
             weightText.textContent = `${flow.weight}%`;
             svg.appendChild(weightText);

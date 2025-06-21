@@ -454,6 +454,15 @@ func getMultiClusterTopology(w http.ResponseWriter, r *http.Request) {
 				Port: "8080",
 			},
 			{
+				Name: "eastwest-gateway",
+				Icon: "🌉",
+				Deployments: map[string]string{
+					"ctx1": "eastwest-gateway-ctx1-xxx",
+					"ctx2": "eastwest-gateway-ctx2-xxx",
+				},
+				Port: "15443",
+			},
+			{
 				Name: "user-service",
 				Icon: "👤", 
 				Deployments: map[string]string{
@@ -498,7 +507,7 @@ func getMultiClusterTopology(w http.ResponseWriter, r *http.Request) {
 				IsActive: true,
 				FlowType: "external",
 			},
-			// API Gateway to User Service
+			// API Gateway to User Service (CTX1 - internal)
 			{
 				From:     "api-gateway-ctx1",
 				To:       "user-service-ctx1",
@@ -506,14 +515,45 @@ func getMultiClusterTopology(w http.ResponseWriter, r *http.Request) {
 				IsActive: weights.UserServiceCtx1Weight > 0,
 				FlowType: "internal",
 			},
+			// API Gateway to CTX1 eastwest-gateway for cross-cluster traffic
 			{
 				From:     "api-gateway-ctx1",
+				To:       "eastwest-gateway-ctx1", 
+				Weight:   weights.UserServiceCtx2Weight + weights.MovieServiceCtx2Weight + weights.BookingServiceCtx2Weight,
+				IsActive: (weights.UserServiceCtx2Weight + weights.MovieServiceCtx2Weight + weights.BookingServiceCtx2Weight) > 0,
+				FlowType: "internal",
+			},
+			// CTX1 eastwest-gateway to CTX2 eastwest-gateway
+			{
+				From:     "eastwest-gateway-ctx1",
+				To:       "eastwest-gateway-ctx2",
+				Weight:   weights.UserServiceCtx2Weight + weights.MovieServiceCtx2Weight + weights.BookingServiceCtx2Weight,
+				IsActive: (weights.UserServiceCtx2Weight + weights.MovieServiceCtx2Weight + weights.BookingServiceCtx2Weight) > 0,
+				FlowType: "cross-cluster",
+			},
+			// CTX2 eastwest-gateway to services
+			{
+				From:     "eastwest-gateway-ctx2",
 				To:       "user-service-ctx2", 
 				Weight:   weights.UserServiceCtx2Weight,
 				IsActive: weights.UserServiceCtx2Weight > 0,
-				FlowType: "cross-cluster",
+				FlowType: "internal",
 			},
-			// API Gateway to Movie Service
+			{
+				From:     "eastwest-gateway-ctx2",
+				To:       "movie-service-ctx2",
+				Weight:   weights.MovieServiceCtx2Weight,
+				IsActive: weights.MovieServiceCtx2Weight > 0,
+				FlowType: "internal",
+			},
+			{
+				From:     "eastwest-gateway-ctx2",
+				To:       "booking-service-ctx2",
+				Weight:   weights.BookingServiceCtx2Weight, 
+				IsActive: weights.BookingServiceCtx2Weight > 0,
+				FlowType: "internal",
+			},
+			// API Gateway to CTX1 services (internal)
 			{
 				From:     "api-gateway-ctx1",
 				To:       "movie-service-ctx1",
@@ -522,26 +562,11 @@ func getMultiClusterTopology(w http.ResponseWriter, r *http.Request) {
 				FlowType: "internal",
 			},
 			{
-				From:     "api-gateway-ctx1", 
-				To:       "movie-service-ctx2",
-				Weight:   weights.MovieServiceCtx2Weight,
-				IsActive: weights.MovieServiceCtx2Weight > 0,
-				FlowType: "cross-cluster",
-			},
-			// API Gateway to Booking Service
-			{
 				From:     "api-gateway-ctx1",
 				To:       "booking-service-ctx1",
 				Weight:   weights.BookingServiceCtx1Weight,
 				IsActive: weights.BookingServiceCtx1Weight > 0,
 				FlowType: "internal",
-			},
-			{
-				From:     "api-gateway-ctx1",
-				To:       "booking-service-ctx2",
-				Weight:   weights.BookingServiceCtx2Weight, 
-				IsActive: weights.BookingServiceCtx2Weight > 0,
-				FlowType: "cross-cluster",
 			},
 		},
 		LastUpdated: time.Now().Format("2006-01-02 15:04:05"),
