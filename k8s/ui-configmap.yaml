@@ -13,12 +13,12 @@ data:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Theater MSA - 클러스터 간 트래픽 분산 시각화</title>
+        <title>K-PaaS 영화관 MSA 샘플 - 클러스터 간 트래픽 분산 시각화</title>
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
         <div class="container">
-            <h1>🎬 Theater Management System</h1>
+            <h1>🎬 K-PaaS 영화관 MSA 샘플</h1>
             <p class="subtitle">멀티클라우드 MSA 데모 애플리케이션 - 트래픽 분산 시각화</p>
             
             <div class="data-sections">
