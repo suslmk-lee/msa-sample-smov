@@ -150,13 +150,9 @@ data:
             </div>
             
             <div class="section">
-                <h2>🌐 멀티클라우드 트래픽 토폴로지</h2>
-                <button onclick="loadTopology()">토폴로지 새로고침</button>
-                <div id="topology-view">
-                    <svg id="topology-svg" width="100%" height="600">
-                        <!-- 클러스터 및 서비스 노드들이 JavaScript로 동적 생성됩니다 -->
-                    </svg>
-                </div>
+                <h2>☁️ 멀티클라우드 배포 현황</h2>
+                <button onclick="loadDeploymentStatus()">배포 상태 새로고침</button>
+                <div id="deployment-status">로딩 중...</div>
             </div>
         </div>
         
@@ -607,131 +603,170 @@ data:
         }
     }
 
-    /* 토폴로지 시각화 스타일 */
-    #topology-view {
+    /* 배포 현황 스타일 */
+    .deployment-overview {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        margin-top: 15px;
+    }
+
+    .cluster-deployment {
         background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         border: 1px solid #cbd5e0;
         border-radius: 12px;
         padding: 20px;
-        margin-top: 15px;
-        overflow-x: auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
-    #topology-svg {
+    .cluster-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 15px 20px;
         background: white;
         border-radius: 8px;
-        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    /* SVG 클러스터 스타일 */
-    .cluster-box {
-        fill: #f7fafc;
-        stroke: #4299e1;
-        stroke-width: 2;
-        stroke-dasharray: 5,5;
-        rx: 10;
-    }
-
-    .cluster-label {
-        font-family: 'Segoe UI', sans-serif;
-        font-size: 14px;
-        font-weight: bold;
-        fill: #2d3748;
-    }
-
-    .cluster-provider {
-        font-family: 'Segoe UI', sans-serif;
-        font-size: 10px;
-        fill: #718096;
-    }
-
-    /* SVG 서비스 노드 스타일 */
-    .service-node {
-        fill: #4299e1;
-        stroke: #2b6cb0;
-        stroke-width: 2;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .service-node:hover {
-        fill: #3182ce;
-        stroke-width: 3;
-    }
-
-    .service-node.external {
-        fill: #48bb78;
-        stroke: #38a169;
-    }
-
-    .service-node.gateway {
-        fill: #ed8936;
-        stroke: #dd6b20;
-    }
-
-    .service-label {
-        font-family: 'Segoe UI', sans-serif;
-        font-size: 12px;
+    .cluster-header h3 {
+        margin: 0;
+        color: #2d3748;
+        font-size: 1.3em;
         font-weight: 600;
-        fill: white;
-        text-anchor: middle;
-        dominant-baseline: central;
+    }
+
+    .cluster-status {
+        background: #48bb78;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: 500;
+    }
+
+    .services-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 15px;
+    }
+
+    .service-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 16px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .service-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    }
+
+    .service-card.status-running {
+        border-left: 4px solid #48bb78;
+    }
+
+    .service-card.status-pending {
+        border-left: 4px solid #ed8936;
+    }
+
+    .service-card.status-failed {
+        border-left: 4px solid #f56565;
+    }
+
+    .service-card.status-not-ready {
+        border-left: 4px solid #ecc94b;
+    }
+
+    .service-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e2e8f0;
     }
 
     .service-icon {
-        font-size: 16px;
-        text-anchor: middle;
-        dominant-baseline: central;
+        font-size: 1.8em;
+        width: 40px;
+        text-align: center;
     }
 
-    /* 트래픽 흐름 라인 스타일 */
-    .traffic-flow {
-        stroke-width: 3;
-        fill: none;
-        marker-end: url(#arrowhead);
+    .service-name {
+        flex: 1;
+        font-weight: 600;
+        color: #2d3748;
+        font-size: 1.1em;
     }
 
-    .traffic-flow.internal {
-        stroke: #4299e1;
-        stroke-dasharray: none;
+    .service-status {
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-weight: 600;
+        text-transform: uppercase;
     }
 
-    .traffic-flow.cross-cluster {
-        stroke: #ed8936;
-        stroke-dasharray: 8,4;
+    .service-status.status-running {
+        background: #c6f6d5;
+        color: #22543d;
     }
 
-    .traffic-flow.external {
-        stroke: #48bb78;
-        stroke-dasharray: none;
+    .service-status.status-pending {
+        background: #fbd38d;
+        color: #744210;
     }
 
-    .traffic-flow.inactive {
-        stroke: #cbd5e0;
-        stroke-dasharray: 2,2;
-        stroke-width: 1;
+    .service-status.status-failed {
+        background: #fed7d7;
+        color: #742a2a;
     }
 
-    /* 트래픽 가중치 레이블 */
-    .traffic-weight {
-        font-family: 'Segoe UI', sans-serif;
-        font-size: 11px;
-        font-weight: bold;
-        fill: #2d3748;
-        text-anchor: middle;
-        background: white;
-        padding: 2px 4px;
-        border-radius: 3px;
+    .service-status.status-not-ready {
+        background: #faf089;
+        color: #744210;
     }
 
-    /* 애니메이션 */
-    .traffic-flow.active {
-        animation: traffic-pulse 2s infinite;
+    .service-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
     }
 
-    @keyframes traffic-pulse {
-        0%, 100% { stroke-opacity: 1; }
-        50% { stroke-opacity: 0.5; }
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .detail-label {
+        font-size: 0.8em;
+        color: #718096;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-value {
+        font-size: 0.9em;
+        color: #2d3748;
+        font-weight: 500;
+        word-break: break-all;
+    }
+
+    .error-message {
+        color: #e53e3e;
+        text-align: center;
+        padding: 20px;
+        background: #fed7d7;
+        border-radius: 8px;
+        border: 1px solid #feb2b2;
+        margin-top: 15px;
     }
   script.js: |
     // 전역 변수
@@ -755,7 +790,7 @@ data:
         loadUsers();
         loadMovies();
         loadBookings();
-        loadTopology();
+        loadDeploymentStatus();
         startPeriodicUpdates();
     });
 
@@ -1218,311 +1253,112 @@ data:
     }
     
     function startPeriodicUpdates() {
-        // 토폴로지와 배포 상태를 주기적으로 업데이트 (30초마다)
+        // 배포 상태를 주기적으로 업데이트 (30초마다)
         setInterval(() => {
-            loadTopology();
+            loadDeploymentStatus();
         }, 30000);
     }
 
-    // 토폴로지 로드 함수
-    async function loadTopology() {
+    // 배포 상태 로드 함수
+    async function loadDeploymentStatus() {
         try {
-            const response = await fetch('/topology');
-            const topology = await response.json();
-            renderTopology(topology);
+            const response = await fetch('/deployment-status');
+            const deployments = await response.json();
+            renderDeploymentStatus(deployments);
         } catch (error) {
-            console.error('Error loading topology:', error);
-            document.getElementById('topology-svg').innerHTML = 
-                '<text x="50%" y="50%" text-anchor="middle" fill="#e53e3e">토폴로지를 로드할 수 없습니다</text>';
+            console.error('Error loading deployment status:', error);
+            document.getElementById('deployment-status').innerHTML = 
+                '<div class="error-message">배포 상태를 로드할 수 없습니다</div>';
         }
     }
 
-    // 토폴로지 렌더링 함수
-    function renderTopology(topology) {
-        const svg = document.getElementById('topology-svg');
-        const svgWidth = 1000;
-        const svgHeight = 600;
+    // 배포 상태 렌더링 함수
+    function renderDeploymentStatus(deployments) {
+        const container = document.getElementById('deployment-status');
         
-        // SVG 초기화
-        svg.innerHTML = '';
-        svg.setAttribute('width', svgWidth);
-        svg.setAttribute('height', svgHeight);
-        
-        // 화살표 마커 정의 (각 트래픽 유형별)
-        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-        
-        const markerTypes = [
-            { id: 'arrowhead-external', color: '#48bb78' },
-            { id: 'arrowhead-internal', color: '#4299e1' },
-            { id: 'arrowhead-cross-cluster', color: '#ed8936' },
-            { id: 'arrowhead-inactive', color: '#cbd5e0' }
-        ];
-        
-        markerTypes.forEach(markerType => {
-            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-            marker.setAttribute('id', markerType.id);
-            marker.setAttribute('markerWidth', '12');
-            marker.setAttribute('markerHeight', '8');
-            marker.setAttribute('refX', '11');
-            marker.setAttribute('refY', '4');
-            marker.setAttribute('orient', 'auto');
-            marker.setAttribute('markerUnits', 'strokeWidth');
-            
-            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            polygon.setAttribute('points', '0 0, 12 4, 0 8');
-            polygon.setAttribute('fill', markerType.color);
-            
-            marker.appendChild(polygon);
-            defs.appendChild(marker);
-        });
-        
-        svg.appendChild(defs);
-        
-        // 클러스터 위치 정의
-        const clusterPositions = {
-            'external': { x: 50, y: 300, width: 120, height: 80 },
-            'ctx1': { x: 300, y: 100, width: 300, height: 400 },
-            'ctx2': { x: 700, y: 100, width: 250, height: 400 }
+        // 클러스터별로 배포 정보 그룹화
+        const clusterGroups = {
+            'ctx1': {
+                name: 'CTX1 (NaverCloud Platform)',
+                color: '#4299e1',
+                services: []
+            },
+            'ctx2': {
+                name: 'CTX2 (NHN Cloud NKS)',
+                color: '#ed8936', 
+                services: []
+            }
         };
         
-        // 클러스터 박스 그리기
-        drawCluster(svg, 'CTX1 (NaverCloud)', clusterPositions.ctx1, '#4299e1');
-        drawCluster(svg, 'CTX2 (NHN Cloud)', clusterPositions.ctx2, '#ed8936');
+        deployments.forEach(deployment => {
+            if (clusterGroups[deployment.cluster]) {
+                clusterGroups[deployment.cluster].services.push(deployment);
+            }
+        });
         
-        // 외부 노드 (사용자)
-        const externalNode = drawServiceNode(svg, 'external', '🌍', 'External Users', 
-                                           clusterPositions.external.x + 60, 
-                                           clusterPositions.external.y + 40, 
-                                           'external');
+        let html = '<div class="deployment-overview">';
         
-        // 서비스 노드 위치 계산 및 그리기
-        const servicePositions = calculateServicePositions(topology.services, clusterPositions);
-        const serviceNodes = {};
-        
-        topology.services.forEach(service => {
-            Object.keys(service.deployments).forEach(cluster => {
-                const key = `${service.name}-${cluster}`;
-                const pos = servicePositions[key];
-                if (pos) {
-                    const nodeType = service.name.includes('gateway') ? 'gateway' : 'service';
-                    serviceNodes[key] = drawServiceNode(svg, key, service.icon, 
-                                                     service.name, pos.x, pos.y, nodeType);
-                }
+        Object.keys(clusterGroups).forEach(clusterId => {
+            const cluster = clusterGroups[clusterId];
+            if (cluster.services.length === 0) return;
+            
+            html += `
+                <div class="cluster-deployment">
+                    <div class="cluster-header" style="border-left: 4px solid ${cluster.color}">
+                        <h3>${cluster.name}</h3>
+                        <span class="cluster-status">활성 ${cluster.services.length}개 서비스</span>
+                    </div>
+                    <div class="services-grid">
+            `;
+            
+            cluster.services.forEach(service => {
+                const statusClass = getStatusClass(service.status);
+                html += `
+                    <div class="service-card ${statusClass}">
+                        <div class="service-header">
+                            <span class="service-icon">${service.icon}</span>
+                            <span class="service-name">${service.service}</span>
+                            <span class="service-status ${statusClass}">${service.status}</span>
+                        </div>
+                        <div class="service-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Pod:</span>
+                                <span class="detail-value">${service.podName}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Node:</span>
+                                <span class="detail-value">${service.nodeName}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Port:</span>
+                                <span class="detail-value">${service.port}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">최종 확인:</span>
+                                <span class="detail-value">${service.lastChecked}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
             });
+            
+            html += `
+                    </div>
+                </div>
+            `;
         });
         
-        // 트래픽 흐름 그리기 (활성 및 비활성 모두)
-        topology.trafficFlow.forEach(flow => {
-            drawTrafficFlow(svg, flow, servicePositions, clusterPositions);
-        });
-        
-        // 범례 추가
-        drawLegend(svg, svgWidth - 200, 20);
+        html += '</div>';
+        container.innerHTML = html;
     }
     
-    // 클러스터 박스 그리기
-    function drawCluster(svg, name, position, color) {
-        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        rect.setAttribute('x', position.x);
-        rect.setAttribute('y', position.y);
-        rect.setAttribute('width', position.width);
-        rect.setAttribute('height', position.height);
-        rect.setAttribute('class', 'cluster-box');
-        rect.setAttribute('stroke', color);
-        svg.appendChild(rect);
-        
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', position.x + 10);
-        text.setAttribute('y', position.y + 20);
-        text.setAttribute('class', 'cluster-label');
-        text.textContent = name;
-        svg.appendChild(text);
-    }
-    
-    // 서비스 노드 그리기
-    function drawServiceNode(svg, id, icon, name, x, y, type) {
-        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        
-        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        circle.setAttribute('cx', x);
-        circle.setAttribute('cy', y);
-        circle.setAttribute('r', 25);
-        circle.setAttribute('class', `service-node ${type}`);
-        group.appendChild(circle);
-        
-        const iconText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        iconText.setAttribute('x', x);
-        iconText.setAttribute('y', y - 5);
-        iconText.setAttribute('class', 'service-icon');
-        iconText.textContent = icon;
-        group.appendChild(iconText);
-        
-        const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        labelText.setAttribute('x', x);
-        labelText.setAttribute('y', y + 45);
-        labelText.setAttribute('class', 'service-label');
-        labelText.setAttribute('fill', '#2d3748');
-        labelText.textContent = name.length > 12 ? name.substring(0, 10) + '...' : name;
-        group.appendChild(labelText);
-        
-        svg.appendChild(group);
-        return { x, y };
-    }
-    
-    // 서비스 위치 계산
-    function calculateServicePositions(services, clusterPositions) {
-        const positions = {};
-        
-        // API Gateway (CTX1에만)
-        positions['api-gateway-ctx1'] = { 
-            x: clusterPositions.ctx1.x + 150, 
-            y: clusterPositions.ctx1.y + 80 
-        };
-        
-        // 각 서비스별 위치 (CTX1, CTX2)
-        const serviceOffsets = {
-            'eastwest-gateway': { ctx1: { x: 220, y: 120 }, ctx2: { x: 120, y: 120 } },
-            'user-service': { ctx1: { x: 80, y: 180 }, ctx2: { x: 80, y: 180 } },
-            'movie-service': { ctx1: { x: 220, y: 180 }, ctx2: { x: 80, y: 280 } },
-            'booking-service': { ctx1: { x: 80, y: 280 }, ctx2: { x: 80, y: 380 } },
-            'redis': { ctx1: { x: 220, y: 320 } }
-        };
-        
-        services.forEach(service => {
-            if (serviceOffsets[service.name]) {
-                Object.keys(service.deployments).forEach(cluster => {
-                    const key = `${service.name}-${cluster}`;
-                    const offset = serviceOffsets[service.name][cluster];
-                    if (offset && clusterPositions[cluster]) {
-                        positions[key] = {
-                            x: clusterPositions[cluster].x + offset.x,
-                            y: clusterPositions[cluster].y + offset.y
-                        };
-                    }
-                });
-            }
-        });
-        
-        return positions;
-    }
-    
-    // 트래픽 흐름 그리기
-    function drawTrafficFlow(svg, flow, servicePositions, clusterPositions) {
-        let fromPos, toPos;
-        
-        if (flow.from === 'external') {
-            fromPos = { x: clusterPositions.external.x + 120, y: clusterPositions.external.y + 40 };
-        } else {
-            fromPos = servicePositions[flow.from];
-        }
-        
-        toPos = servicePositions[flow.to];
-        
-        if (!fromPos || !toPos) return;
-        
-        // 노드 반지름을 고려한 시작점과 끝점 계산
-        const nodeRadius = 25;
-        const dx = toPos.x - fromPos.x;
-        const dy = toPos.y - fromPos.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance === 0) return;
-        
-        const unitX = dx / distance;
-        const unitY = dy / distance;
-        
-        const startX = fromPos.x + unitX * nodeRadius;
-        const startY = fromPos.y + unitY * nodeRadius;
-        const endX = toPos.x - unitX * nodeRadius;
-        const endY = toPos.y - unitY * nodeRadius;
-        
-        // 화살표가 있는 선 그리기
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        let pathData;
-        
-        // 클러스터 간 연결의 경우 곡선으로 표현
-        if (flow.flowType === 'cross-cluster') {
-            const midX = (startX + endX) / 2;
-            const midY = (startY + endY) / 2;
-            const controlY = midY - 50; // 곡선의 높이 조정
-            pathData = `M ${startX} ${startY} Q ${midX} ${controlY} ${endX} ${endY}`;
-        } else {
-            pathData = `M ${startX} ${startY} L ${endX} ${endY}`;
-        }
-        
-        path.setAttribute('d', pathData);
-        path.setAttribute('class', `traffic-flow ${flow.flowType} ${flow.isActive ? 'active' : 'inactive'}`);
-        
-        // 가중치에 따른 선 굵기 조정
-        const strokeWidth = Math.max(2, Math.min(8, flow.weight / 15));
-        path.setAttribute('stroke-width', strokeWidth);
-        
-        // 화살표 마커 설정 (활성/비활성 상태에 따라)
-        const markerId = flow.isActive ? `arrowhead-${flow.flowType}` : 'arrowhead-inactive';
-        path.setAttribute('marker-end', `url(#${markerId})`);
-        
-        svg.appendChild(path);
-        
-        // 가중치 레이블
-        if (flow.weight > 0) {
-            let labelX, labelY;
-            
-            if (flow.flowType === 'cross-cluster') {
-                labelX = (startX + endX) / 2;
-                labelY = (startY + endY) / 2 - 40;
-            } else {
-                labelX = (startX + endX) / 2;
-                labelY = (startY + endY) / 2 - 15;
-            }
-            
-            // 배경 사각형
-            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            rect.setAttribute('x', labelX - 15);
-            rect.setAttribute('y', labelY - 10);
-            rect.setAttribute('width', 30);
-            rect.setAttribute('height', 16);
-            rect.setAttribute('fill', 'white');
-            rect.setAttribute('stroke', '#cbd5e0');
-            rect.setAttribute('stroke-width', 1);
-            rect.setAttribute('rx', 3);
-            svg.appendChild(rect);
-            
-            const weightText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            weightText.setAttribute('x', labelX);
-            weightText.setAttribute('y', labelY + 3);
-            weightText.setAttribute('class', 'traffic-weight');
-            weightText.textContent = `${flow.weight}%`;
-            svg.appendChild(weightText);
+    function getStatusClass(status) {
+        switch (status) {
+            case 'Running': return 'status-running';
+            case 'Pending': return 'status-pending';
+            case 'Failed': return 'status-failed';
+            case 'Not Ready': return 'status-not-ready';
+            default: return 'status-unknown';
         }
     }
-    
-    // 범례 그리기
-    function drawLegend(svg, x, y) {
-        const legend = [
-            { color: '#48bb78', type: 'solid', label: '외부 트래픽' },
-            { color: '#4299e1', type: 'solid', label: '클러스터 내부' },
-            { color: '#ed8936', type: 'dashed', label: '클러스터 간' },
-            { color: '#cbd5e0', type: 'dotted', label: '비활성' }
-        ];
-        
-        legend.forEach((item, i) => {
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', x);
-            line.setAttribute('y1', y + i * 20);
-            line.setAttribute('x2', x + 30);
-            line.setAttribute('y2', y + i * 20);
-            line.setAttribute('stroke', item.color);
-            line.setAttribute('stroke-width', 3);
-            if (item.type === 'dashed') line.setAttribute('stroke-dasharray', '8,4');
-            if (item.type === 'dotted') line.setAttribute('stroke-dasharray', '2,2');
-            svg.appendChild(line);
-            
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', x + 40);
-            text.setAttribute('y', y + i * 20 + 5);
-            text.setAttribute('font-size', '12px');
-            text.setAttribute('fill', '#2d3748');
-            text.textContent = item.label;
-            svg.appendChild(text);
-        });
-    }
+
