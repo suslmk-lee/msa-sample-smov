@@ -24,7 +24,7 @@ spec:
       serviceAccountName: theater-msa-sa
       containers:
       - name: user-service
-        image: harbor.27.96.156.180.nip.io/theater-msa/user-service:latest
+        image: theater-msa/user-service:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8081

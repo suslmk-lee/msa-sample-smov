@@ -20,11 +20,12 @@ spec:
         maxRequestsPerConnection: 2
         maxRetries: 3
     outlierDetection:
-      consecutiveGatewayErrors: 3
-      consecutive5xxErrors: 3
-      interval: 30s
+      consecutiveGatewayErrors: 2
+      consecutive5xxErrors: 2
+      interval: 10s
       baseEjectionTime: 30s
       maxEjectionPercent: 50
+      minHealthPercent: 30
   subsets:
   - name: ctx1
     labels:

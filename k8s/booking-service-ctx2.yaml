@@ -24,7 +24,7 @@ spec:
       serviceAccountName: theater-msa-sa
       containers:
       - name: booking-service
-        image: harbor.27.96.156.180.nip.io/theater-msa/booking-service:latest
+        image: theater-msa/booking-service:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8083
