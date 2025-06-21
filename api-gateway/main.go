@@ -239,6 +239,21 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 	
 	if strings.HasPrefix(r.URL.Path, "/movies/") {
 		log.Printf("Routing to movie-service via Istio VirtualService")
+		
+		// CTX2 지연 시뮬레이션을 위한 특별 처리
+		if os.Getenv("DELAY_INJECTION_MODE") == "true" {
+			// 가중치 기반으로 CTX2로 라우팅될지 결정
+			currentWeights := getVirtualServiceWeights()
+			cluster := weightedServiceSelect("movie", currentWeights.MovieServiceCtx1Weight, currentWeights.MovieServiceCtx2Weight, "ctx1", "ctx2")
+			
+			if cluster == "ctx2" {
+				log.Printf("Simulating CTX2 delay: 5 seconds for movie service")
+				time.Sleep(5 * time.Second)
+			} else {
+				log.Printf("CTX1 routing: no delay for movie service")
+			}
+		}
+		
 		proxy := newReverseProxy("http://movie-service:8082")
 		proxy.ServeHTTP(w, r)
 		return
