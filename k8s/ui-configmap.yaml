@@ -619,6 +619,11 @@ data:
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
+    .cluster-deployment.static-data {
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        opacity: 0.85;
+    }
+
     .cluster-header {
         display: flex;
         justify-content: space-between;
@@ -1279,14 +1284,16 @@ data:
         // 클러스터별로 배포 정보 그룹화
         const clusterGroups = {
             'ctx1': {
-                name: 'CTX1 (NaverCloud Platform)',
+                name: 'CTX1',
                 color: '#4299e1',
-                services: []
+                services: [],
+                isStatic: false
             },
             'ctx2': {
-                name: 'CTX2 (NHN Cloud NKS)',
+                name: 'CTX2',
                 color: '#ed8936', 
-                services: []
+                services: [],
+                isStatic: true
             }
         };
         
@@ -1302,8 +1309,9 @@ data:
             const cluster = clusterGroups[clusterId];
             if (cluster.services.length === 0) return;
             
+            const staticClass = cluster.isStatic ? 'static-data' : '';
             html += `
-                <div class="cluster-deployment">
+                <div class="cluster-deployment ${staticClass}">
                     <div class="cluster-header" style="border-left: 4px solid ${cluster.color}">
                         <h3>${cluster.name}</h3>
                         <span class="cluster-status">활성 ${cluster.services.length}개 서비스</span>

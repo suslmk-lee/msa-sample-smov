@@ -348,6 +348,9 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
+	// 한국 시간 설정
+	loc, _ := time.LoadLocation("Asia/Seoul")
+	
 	// Add CTX2 services information (based on actual deployment status)
 	ctx2Services := []DeploymentInfo{
 		{
@@ -359,7 +362,7 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 			Status:      "Running",
 			Port:        "8081",
 			Icon:        "👤",
-			LastChecked: time.Now().Format("2006-01-02 15:04:05"),
+			LastChecked: time.Now().In(loc).Format("2006-01-02 15:04:05"),
 		},
 		{
 			Service:     "Movie Service",
@@ -370,7 +373,7 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 			Status:      "Running",
 			Port:        "8082",
 			Icon:        "🎬",
-			LastChecked: time.Now().Format("2006-01-02 15:04:05"),
+			LastChecked: time.Now().In(loc).Format("2006-01-02 15:04:05"),
 		},
 		{
 			Service:     "Booking Service",
@@ -381,7 +384,7 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 			Status:      "Running",
 			Port:        "8083",
 			Icon:        "🎟️",
-			LastChecked: time.Now().Format("2006-01-02 15:04:05"),
+			LastChecked: time.Now().In(loc).Format("2006-01-02 15:04:05"),
 		},
 		{
 			Service:     "Redis",
@@ -392,7 +395,7 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 			Status:      "Running",
 			Port:        "6379",
 			Icon:        "💾",
-			LastChecked: time.Now().Format("2006-01-02 15:04:05"),
+			LastChecked: time.Now().In(loc).Format("2006-01-02 15:04:05"),
 		},
 	}
 	
@@ -456,6 +459,9 @@ func createDeploymentInfo(pod metav1.Object) DeploymentInfo {
 		icon = "💾"
 	}
 
+	// 한국 시간 설정
+	loc, _ := time.LoadLocation("Asia/Seoul")
+	
 	return DeploymentInfo{
 		Service:     serviceName,
 		Cluster:     cluster,
@@ -465,7 +471,7 @@ func createDeploymentInfo(pod metav1.Object) DeploymentInfo {
 		Status:      status,   // 실제 상태 사용
 		Port:        port,
 		Icon:        icon,
-		LastChecked: time.Now().Format("2006-01-02 15:04:05"),
+		LastChecked: time.Now().In(loc).Format("2006-01-02 15:04:05"),
 	}
 }
 
