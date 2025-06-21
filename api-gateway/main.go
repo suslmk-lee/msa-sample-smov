@@ -268,6 +268,12 @@ func customHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strings.HasPrefix(r.URL.Path, "/topology") {
+		log.Printf("Serving multi-cluster topology: %s", r.URL.Path)
+		getMultiClusterTopology(w, r)
+		return
+	}
+
 	// Static files fallback
 	http.FileServer(http.Dir("ui")).ServeHTTP(w, r)
 }
@@ -289,14 +295,47 @@ func getTrafficHistory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(trafficHistory)
 }
 
-// getDeploymentStatus returns deployment status information for Kubernetes
+// MultiClusterTopology represents the overall cluster topology
+type MultiClusterTopology struct {
+	Clusters    []ClusterInfo    `json:"clusters"`
+	Services    []ServiceInfo    `json:"services"`
+	TrafficFlow []TrafficFlowInfo `json:"trafficFlow"`
+	LastUpdated string           `json:"lastUpdated"`
+}
+
+// ClusterInfo represents cluster information
+type ClusterInfo struct {
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+	Status   string `json:"status"`
+	NodeCount int   `json:"nodeCount"`
+}
+
+// ServiceInfo represents service deployment across clusters
+type ServiceInfo struct {
+	Name        string            `json:"name"`
+	Icon        string            `json:"icon"`
+	Deployments map[string]string `json:"deployments"` // cluster -> pod name
+	Port        string            `json:"port"`
+}
+
+// TrafficFlowInfo represents traffic flow between services
+type TrafficFlowInfo struct {
+	From        string `json:"from"`
+	To          string `json:"to"`
+	Weight      int    `json:"weight"`
+	IsActive    bool   `json:"isActive"`
+	FlowType    string `json:"flowType"` // "internal", "cross-cluster"
+}
+
+// getDeploymentStatus returns deployment status information for current cluster only
 func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 	if kubernetesClient == nil {
 		http.Error(w, "Kubernetes client not available", http.StatusServiceUnavailable)
 		return
 	}
 
-	// Get pods in theater-msa namespace
+	// Get pods in theater-msa namespace (current cluster only)
 	pods, err := kubernetesClient.CoreV1().Pods("theater-msa").List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		http.Error(w, "Failed to get pods: "+err.Error(), http.StatusInternalServerError)
@@ -362,8 +401,7 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 			serviceName = "Redis"
 			port = "6379"
 			icon = "💾"
-			// Determine cluster based on node or other criteria
-			cluster = "ctx1" // Default to ctx1, adjust logic as needed
+			cluster = "ctx1" // Redis is in CTX1
 		}
 
 		deployments = append(deployments, DeploymentInfo{
@@ -381,6 +419,135 @@ func getDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(deployments)
+}
+
+// getMultiClusterTopology returns comprehensive multi-cluster topology with traffic flows
+func getMultiClusterTopology(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	
+	// Get current VirtualService weights
+	weights := getVirtualServiceWeights()
+	
+	// Build topology data
+	topology := MultiClusterTopology{
+		Clusters: []ClusterInfo{
+			{
+				Name:     "ctx1",
+				Provider: "NaverCloud Platform",
+				Status:   "Active",
+				NodeCount: 1,
+			},
+			{
+				Name:     "ctx2", 
+				Provider: "NHN Cloud NKS",
+				Status:   "Active",
+				NodeCount: 1,
+			},
+		},
+		Services: []ServiceInfo{
+			{
+				Name: "api-gateway",
+				Icon: "🌐",
+				Deployments: map[string]string{
+					"ctx1": "api-gateway-xxx",
+				},
+				Port: "8080",
+			},
+			{
+				Name: "user-service",
+				Icon: "👤", 
+				Deployments: map[string]string{
+					"ctx1": "user-service-ctx1-xxx",
+					"ctx2": "user-service-ctx2-xxx",
+				},
+				Port: "8081",
+			},
+			{
+				Name: "movie-service",
+				Icon: "🎬",
+				Deployments: map[string]string{
+					"ctx1": "movie-service-ctx1-xxx",
+					"ctx2": "movie-service-ctx2-xxx", 
+				},
+				Port: "8082",
+			},
+			{
+				Name: "booking-service",
+				Icon: "🎟️",
+				Deployments: map[string]string{
+					"ctx1": "booking-service-ctx1-xxx",
+					"ctx2": "booking-service-ctx2-xxx",
+				},
+				Port: "8083",
+			},
+			{
+				Name: "redis",
+				Icon: "💾",
+				Deployments: map[string]string{
+					"ctx1": "redis-xxx",
+				},
+				Port: "6379",
+			},
+		},
+		TrafficFlow: []TrafficFlowInfo{
+			// External traffic to API Gateway
+			{
+				From:     "external",
+				To:       "api-gateway-ctx1", 
+				Weight:   100,
+				IsActive: true,
+				FlowType: "external",
+			},
+			// API Gateway to User Service
+			{
+				From:     "api-gateway-ctx1",
+				To:       "user-service-ctx1",
+				Weight:   weights.UserServiceCtx1Weight,
+				IsActive: weights.UserServiceCtx1Weight > 0,
+				FlowType: "internal",
+			},
+			{
+				From:     "api-gateway-ctx1",
+				To:       "user-service-ctx2", 
+				Weight:   weights.UserServiceCtx2Weight,
+				IsActive: weights.UserServiceCtx2Weight > 0,
+				FlowType: "cross-cluster",
+			},
+			// API Gateway to Movie Service
+			{
+				From:     "api-gateway-ctx1",
+				To:       "movie-service-ctx1",
+				Weight:   weights.MovieServiceCtx1Weight,
+				IsActive: weights.MovieServiceCtx1Weight > 0,
+				FlowType: "internal",
+			},
+			{
+				From:     "api-gateway-ctx1", 
+				To:       "movie-service-ctx2",
+				Weight:   weights.MovieServiceCtx2Weight,
+				IsActive: weights.MovieServiceCtx2Weight > 0,
+				FlowType: "cross-cluster",
+			},
+			// API Gateway to Booking Service
+			{
+				From:     "api-gateway-ctx1",
+				To:       "booking-service-ctx1",
+				Weight:   weights.BookingServiceCtx1Weight,
+				IsActive: weights.BookingServiceCtx1Weight > 0,
+				FlowType: "internal",
+			},
+			{
+				From:     "api-gateway-ctx1",
+				To:       "booking-service-ctx2",
+				Weight:   weights.BookingServiceCtx2Weight, 
+				IsActive: weights.BookingServiceCtx2Weight > 0,
+				FlowType: "cross-cluster",
+			},
+		},
+		LastUpdated: time.Now().Format("2006-01-02 15:04:05"),
+	}
+	
+	json.NewEncoder(w).Encode(topology)
 }
 
 func main() {
