@@ -150,9 +150,13 @@ data:
             </div>
             
             <div class="section">
-                <h2>☁️ 멀티클라우드 배포 상태</h2>
-                <button onclick="loadDeploymentStatus()">상태 확인</button>
-                <div id="deployment-status">로딩 중...</div>
+                <h2>🌐 멀티클라우드 트래픽 토폴로지</h2>
+                <button onclick="loadTopology()">토폴로지 새로고침</button>
+                <div id="topology-view">
+                    <svg id="topology-svg" width="100%" height="600">
+                        <!-- 클러스터 및 서비스 노드들이 JavaScript로 동적 생성됩니다 -->
+                    </svg>
+                </div>
             </div>
         </div>
         
@@ -176,7 +180,7 @@ data:
     }
 
     .container {
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
         background: white;
         border-radius: 15px;
@@ -602,6 +606,128 @@ data:
             transform: translateY(0);
         }
     }
+
+    /* 토폴로지 시각화 스타일 */
+    #topology-view {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border: 1px solid #cbd5e0;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 15px;
+        overflow-x: auto;
+    }
+
+    #topology-svg {
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+
+    /* SVG 클러스터 스타일 */
+    .cluster-box {
+        fill: #f7fafc;
+        stroke: #4299e1;
+        stroke-width: 2;
+        stroke-dasharray: 5,5;
+        rx: 10;
+    }
+
+    .cluster-label {
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 14px;
+        font-weight: bold;
+        fill: #2d3748;
+    }
+
+    .cluster-provider {
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 10px;
+        fill: #718096;
+    }
+
+    /* SVG 서비스 노드 스타일 */
+    .service-node {
+        fill: #4299e1;
+        stroke: #2b6cb0;
+        stroke-width: 2;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .service-node:hover {
+        fill: #3182ce;
+        stroke-width: 3;
+    }
+
+    .service-node.external {
+        fill: #48bb78;
+        stroke: #38a169;
+    }
+
+    .service-label {
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        fill: white;
+        text-anchor: middle;
+        dominant-baseline: central;
+    }
+
+    .service-icon {
+        font-size: 16px;
+        text-anchor: middle;
+        dominant-baseline: central;
+    }
+
+    /* 트래픽 흐름 라인 스타일 */
+    .traffic-flow {
+        stroke-width: 3;
+        fill: none;
+        marker-end: url(#arrowhead);
+    }
+
+    .traffic-flow.internal {
+        stroke: #4299e1;
+        stroke-dasharray: none;
+    }
+
+    .traffic-flow.cross-cluster {
+        stroke: #ed8936;
+        stroke-dasharray: 8,4;
+    }
+
+    .traffic-flow.external {
+        stroke: #48bb78;
+        stroke-dasharray: none;
+    }
+
+    .traffic-flow.inactive {
+        stroke: #cbd5e0;
+        stroke-dasharray: 2,2;
+        stroke-width: 1;
+    }
+
+    /* 트래픽 가중치 레이블 */
+    .traffic-weight {
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 11px;
+        font-weight: bold;
+        fill: #2d3748;
+        text-anchor: middle;
+        background: white;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+
+    /* 애니메이션 */
+    .traffic-flow.active {
+        animation: traffic-pulse 2s infinite;
+    }
+
+    @keyframes traffic-pulse {
+        0%, 100% { stroke-opacity: 1; }
+        50% { stroke-opacity: 0.5; }
+    }
   script.js: |
     // 전역 변수
     let currentUsers = [];
@@ -624,7 +750,7 @@ data:
         loadUsers();
         loadMovies();
         loadBookings();
-        loadDeploymentStatus();
+        loadTopology();
         startPeriodicUpdates();
     });
 
@@ -1087,6 +1213,250 @@ data:
     }
     
     function startPeriodicUpdates() {
-        // 배포 상태만 주기적으로 업데이트 (30초마다)
-        setInterval(loadDeploymentStatus, 30000);
+        // 토폴로지와 배포 상태를 주기적으로 업데이트 (30초마다)
+        setInterval(() => {
+            loadTopology();
+        }, 30000);
+    }
+
+    // 토폴로지 로드 함수
+    async function loadTopology() {
+        try {
+            const response = await fetch('/topology');
+            const topology = await response.json();
+            renderTopology(topology);
+        } catch (error) {
+            console.error('Error loading topology:', error);
+            document.getElementById('topology-svg').innerHTML = 
+                '<text x="50%" y="50%" text-anchor="middle" fill="#e53e3e">토폴로지를 로드할 수 없습니다</text>';
+        }
+    }
+
+    // 토폴로지 렌더링 함수
+    function renderTopology(topology) {
+        const svg = document.getElementById('topology-svg');
+        const svgWidth = 1000;
+        const svgHeight = 600;
+        
+        // SVG 초기화
+        svg.innerHTML = '';
+        svg.setAttribute('width', svgWidth);
+        svg.setAttribute('height', svgHeight);
+        
+        // 화살표 마커 정의
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        marker.setAttribute('id', 'arrowhead');
+        marker.setAttribute('markerWidth', '10');
+        marker.setAttribute('markerHeight', '7');
+        marker.setAttribute('refX', '9');
+        marker.setAttribute('refY', '3.5');
+        marker.setAttribute('orient', 'auto');
+        
+        const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+        polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+        polygon.setAttribute('fill', '#4299e1');
+        
+        marker.appendChild(polygon);
+        defs.appendChild(marker);
+        svg.appendChild(defs);
+        
+        // 클러스터 위치 정의
+        const clusterPositions = {
+            'external': { x: 50, y: 300, width: 120, height: 80 },
+            'ctx1': { x: 300, y: 100, width: 300, height: 400 },
+            'ctx2': { x: 700, y: 100, width: 250, height: 400 }
+        };
+        
+        // 클러스터 박스 그리기
+        drawCluster(svg, 'CTX1 (NaverCloud)', clusterPositions.ctx1, '#4299e1');
+        drawCluster(svg, 'CTX2 (NHN Cloud)', clusterPositions.ctx2, '#ed8936');
+        
+        // 외부 노드 (사용자)
+        const externalNode = drawServiceNode(svg, 'external', '🌍', 'External Users', 
+                                           clusterPositions.external.x + 60, 
+                                           clusterPositions.external.y + 40, 
+                                           'external');
+        
+        // 서비스 노드 위치 계산 및 그리기
+        const servicePositions = calculateServicePositions(topology.services, clusterPositions);
+        const serviceNodes = {};
+        
+        topology.services.forEach(service => {
+            Object.keys(service.deployments).forEach(cluster => {
+                const key = `${service.name}-${cluster}`;
+                const pos = servicePositions[key];
+                if (pos) {
+                    serviceNodes[key] = drawServiceNode(svg, key, service.icon, 
+                                                     service.name, pos.x, pos.y, 'service');
+                }
+            });
+        });
+        
+        // 트래픽 흐름 그리기
+        topology.trafficFlow.forEach(flow => {
+            if (flow.isActive && flow.weight > 0) {
+                drawTrafficFlow(svg, flow, servicePositions, clusterPositions);
+            }
+        });
+        
+        // 범례 추가
+        drawLegend(svg, svgWidth - 200, 20);
+    }
+    
+    // 클러스터 박스 그리기
+    function drawCluster(svg, name, position, color) {
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', position.x);
+        rect.setAttribute('y', position.y);
+        rect.setAttribute('width', position.width);
+        rect.setAttribute('height', position.height);
+        rect.setAttribute('class', 'cluster-box');
+        rect.setAttribute('stroke', color);
+        svg.appendChild(rect);
+        
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', position.x + 10);
+        text.setAttribute('y', position.y + 20);
+        text.setAttribute('class', 'cluster-label');
+        text.textContent = name;
+        svg.appendChild(text);
+    }
+    
+    // 서비스 노드 그리기
+    function drawServiceNode(svg, id, icon, name, x, y, type) {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', 25);
+        circle.setAttribute('class', `service-node ${type}`);
+        group.appendChild(circle);
+        
+        const iconText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        iconText.setAttribute('x', x);
+        iconText.setAttribute('y', y - 5);
+        iconText.setAttribute('class', 'service-icon');
+        iconText.textContent = icon;
+        group.appendChild(iconText);
+        
+        const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        labelText.setAttribute('x', x);
+        labelText.setAttribute('y', y + 45);
+        labelText.setAttribute('class', 'service-label');
+        labelText.setAttribute('fill', '#2d3748');
+        labelText.textContent = name.length > 12 ? name.substring(0, 10) + '...' : name;
+        group.appendChild(labelText);
+        
+        svg.appendChild(group);
+        return { x, y };
+    }
+    
+    // 서비스 위치 계산
+    function calculateServicePositions(services, clusterPositions) {
+        const positions = {};
+        
+        // API Gateway (CTX1에만)
+        positions['api-gateway-ctx1'] = { 
+            x: clusterPositions.ctx1.x + 150, 
+            y: clusterPositions.ctx1.y + 80 
+        };
+        
+        // 각 서비스별 위치 (CTX1, CTX2)
+        const serviceOffsets = {
+            'user-service': { ctx1: { x: 80, y: 180 }, ctx2: { x: 80, y: 180 } },
+            'movie-service': { ctx1: { x: 220, y: 180 }, ctx2: { x: 80, y: 280 } },
+            'booking-service': { ctx1: { x: 80, y: 280 }, ctx2: { x: 80, y: 380 } },
+            'redis': { ctx1: { x: 220, y: 320 } }
+        };
+        
+        services.forEach(service => {
+            if (serviceOffsets[service.name]) {
+                Object.keys(service.deployments).forEach(cluster => {
+                    const key = `${service.name}-${cluster}`;
+                    const offset = serviceOffsets[service.name][cluster];
+                    if (offset && clusterPositions[cluster]) {
+                        positions[key] = {
+                            x: clusterPositions[cluster].x + offset.x,
+                            y: clusterPositions[cluster].y + offset.y
+                        };
+                    }
+                });
+            }
+        });
+        
+        return positions;
+    }
+    
+    // 트래픽 흐름 그리기
+    function drawTrafficFlow(svg, flow, servicePositions, clusterPositions) {
+        let fromPos, toPos;
+        
+        if (flow.from === 'external') {
+            fromPos = { x: clusterPositions.external.x + 120, y: clusterPositions.external.y + 40 };
+        } else {
+            fromPos = servicePositions[flow.from];
+        }
+        
+        toPos = servicePositions[flow.to];
+        
+        if (!fromPos || !toPos) return;
+        
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', fromPos.x + 25);
+        line.setAttribute('y1', fromPos.y);
+        line.setAttribute('x2', toPos.x - 25);
+        line.setAttribute('y2', toPos.y);
+        line.setAttribute('class', `traffic-flow ${flow.flowType} ${flow.isActive ? 'active' : 'inactive'}`);
+        
+        // 가중치에 따른 선 굵기 조정
+        const strokeWidth = Math.max(1, Math.min(8, flow.weight / 10));
+        line.setAttribute('stroke-width', strokeWidth);
+        
+        svg.appendChild(line);
+        
+        // 가중치 레이블
+        if (flow.weight > 0) {
+            const midX = (fromPos.x + toPos.x) / 2;
+            const midY = (fromPos.y + toPos.y) / 2 - 10;
+            
+            const weightText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            weightText.setAttribute('x', midX);
+            weightText.setAttribute('y', midY);
+            weightText.setAttribute('class', 'traffic-weight');
+            weightText.textContent = `${flow.weight}%`;
+            svg.appendChild(weightText);
+        }
+    }
+    
+    // 범례 그리기
+    function drawLegend(svg, x, y) {
+        const legend = [
+            { color: '#48bb78', type: 'solid', label: '외부 트래픽' },
+            { color: '#4299e1', type: 'solid', label: '클러스터 내부' },
+            { color: '#ed8936', type: 'dashed', label: '클러스터 간' },
+            { color: '#cbd5e0', type: 'dotted', label: '비활성' }
+        ];
+        
+        legend.forEach((item, i) => {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x);
+            line.setAttribute('y1', y + i * 20);
+            line.setAttribute('x2', x + 30);
+            line.setAttribute('y2', y + i * 20);
+            line.setAttribute('stroke', item.color);
+            line.setAttribute('stroke-width', 3);
+            if (item.type === 'dashed') line.setAttribute('stroke-dasharray', '8,4');
+            if (item.type === 'dotted') line.setAttribute('stroke-dasharray', '2,2');
+            svg.appendChild(line);
+            
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', x + 40);
+            text.setAttribute('y', y + i * 20 + 5);
+            text.setAttribute('font-size', '12px');
+            text.setAttribute('fill', '#2d3748');
+            text.textContent = item.label;
+            svg.appendChild(text);
+        });
     }
