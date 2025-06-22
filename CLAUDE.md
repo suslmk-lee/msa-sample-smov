@@ -116,8 +116,15 @@ Key functions:
 
 #### CTX2 (NHN Cloud)  
 - Hosts all services with `cluster-name=ctx2` node affinity
+- **Redis Deployment**: Actual Redis instance deployed here
 - No external access (traffic routed through CTX1)
 - Participates in Istio service mesh for internal traffic
+
+#### Redis Multi-Cluster Architecture
+- **CTX1**: Redis Service only (no endpoints) - enables multi-cluster access
+- **CTX2**: Actual Redis Deployment + Service - real data storage
+- **EastWestGateway**: Transparent cross-cluster Redis access for education
+- **Service Mesh Native**: No proxy, pure Istio multi-cluster service discovery
 
 ### Istio Configuration
 
