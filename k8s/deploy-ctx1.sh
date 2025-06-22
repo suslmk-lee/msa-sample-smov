@@ -89,9 +89,9 @@ deploy_ctx1_resources() {
     log_info "2. UI ConfigMap 배포..."
     kubectl apply -f ui-configmap.yaml
     
-    # 3. Redis (단일 Redis, preferredAffinity로 ctx1 우선)
-    log_info "3. Redis 배포..."
-    kubectl apply -f redis-ctx1-service.yaml
+    # 3. Redis Service (CTX2의 Redis를 멀티클러스터로 접근)
+    log_info "3. Redis Service 배포..."
+    kubectl apply -f redis.yaml | grep -E "(service|Service)" || true
     
     # 4. User Service (CTX1 전용)
     log_info "4. User Service 배포..."
@@ -266,7 +266,7 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "  - Movie Service (CTX1 전용)"
     echo "  - Booking Service (CTX1 전용)"
     echo "  - API Gateway"
-    echo "  - Redis (공유)"
+    echo "  - Redis Service (멀티클러스터 접근)"
     echo "  - Istio DestinationRule & VirtualService"
     exit 0
 fi

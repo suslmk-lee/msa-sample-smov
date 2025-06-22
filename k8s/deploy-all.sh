@@ -111,7 +111,7 @@ show_deployment_plan() {
     echo "      - User Service (CTX1 전용) + API Gateway"
     echo "      - Movie Service (CTX1 전용)"
     echo "      - Booking Service (CTX1 전용)"
-    echo "      - Redis (공유)"
+    echo "      - Redis Service (멀티클러스터 접근)"
     echo "      - Istio 트래픽 관리"
     echo "      - 외부 접근 Gateway"
     echo
@@ -120,7 +120,7 @@ show_deployment_plan() {
     echo "      - Movie Service (CTX2 전용)"
     echo "      - Booking Service (CTX2 전용)"
     echo "      - Istio 트래픽 관리"
-    echo "      - 멀티클러스터 연결"
+    echo "      - Redis 실제 배포 + 멀티클러스터 연결"
     echo
     echo "  3️⃣  검증 및 테스트"
     echo "      - 서비스 상태 확인"
@@ -328,14 +328,14 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo "    - User Service (CTX1 전용) + API Gateway"
     echo "    - Movie Service (CTX1 전용)"
     echo "    - Booking Service (CTX1 전용)"
-    echo "    - Redis (공유)"
+    echo "    - Redis Service (멀티클러스터 접근)"
     echo "    - 외부 접근 Gateway"
     echo
     echo "  CTX2 (NHN Cloud):"
     echo "    - User Service (CTX2 전용)"
     echo "    - Movie Service (CTX2 전용)"
     echo "    - Booking Service (CTX2 전용)"
-    echo "    - 멀티클러스터 서비스 디스커버리"
+    echo "    - Redis 실제 배포 + 멀티클러스터 서비스 디스커버리"
     echo
     echo "관련 스크립트:"
     echo "  ./deploy-ctx1.sh     CTX1만 배포"
