@@ -134,7 +134,7 @@ deploy_ctx1() {
     log_step "1️⃣ CTX1 클러스터 배포 시작"
     echo "================================================"
     
-    if [ -x "./deploy-ctx1.sh" ]; then
+    if [ -x "deploy-ctx1.sh" ]; then
         ./deploy-ctx1.sh
     else
         log_error "deploy-ctx1.sh 스크립트를 찾을 수 없거나 실행 권한이 없습니다."
@@ -149,7 +149,7 @@ deploy_ctx2() {
     log_step "2️⃣ CTX2 클러스터 배포 시작"
     echo "================================================"
     
-    if [ -x "./deploy-ctx2.sh" ]; then
+    if [ -x "deploy-ctx2.sh" ]; then
         ./deploy-ctx2.sh
     else
         log_error "deploy-ctx2.sh 스크립트를 찾을 수 없거나 실행 권한이 없습니다."
