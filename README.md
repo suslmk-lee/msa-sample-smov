@@ -59,35 +59,38 @@ API Gateway (8080)
 ## 📁 파일 구조
 
 ```
-k8s/
+deploy/                          # 애플리케이션 배포 관련 파일
 ├── namespace.yaml                # 네임스페이스 및 설정 (Istio injection 활성화)
 ├── redis.yaml                   # Redis 데이터 저장소 (자동 초기 데이터)
-├── user-service.yaml            # 사용자 서비스 (기본)
-├── movie-service.yaml           # 영화 서비스 (기본)
-├── booking-service.yaml         # 예약 서비스 (기본)
-├── user-service-multicloud.yaml # 멀티클라우드 사용자 서비스 (ctx1, ctx2)
-├── movie-service-multicloud.yaml # 멀티클라우드 영화 서비스 (ctx1, ctx2)  
-├── booking-service-multicloud.yaml # 멀티클라우드 예약 서비스 (ctx1, ctx2)
-├── api-gateway.yaml             # API 게이트웨이 (단순 프록시)
+├── redis-ctx1-service.yaml      # CTX1 Redis Service (멀티클러스터 접근)
+├── redis-multicluster.yaml      # Redis 멀티클러스터 설정
+├── user-service-ctx1.yaml       # 사용자 서비스 CTX1
+├── user-service-ctx2.yaml       # 사용자 서비스 CTX2
+├── movie-service-ctx1.yaml      # 영화 서비스 CTX1
+├── movie-service-ctx2.yaml      # 영화 서비스 CTX2
+├── booking-service-ctx1.yaml    # 예약 서비스 CTX1
+├── booking-service-ctx2.yaml    # 예약 서비스 CTX2
+├── api-gateway-ctx1.yaml        # API 게이트웨이 (CTX1 전용)
 ├── rbac.yaml                    # API Gateway용 서비스 계정 및 권한 설정
 ├── ui-configmap.yaml            # UI 파일 (Istio 설정 표시)
 ├── istio-destinationrules.yaml  # DestinationRule (클러스터별 subset)
 ├── istio-virtualservices.yaml   # VirtualService (가중치 기반 라우팅)
-├── istio-gateway.yaml           # Istio Gateway (cp-gateway 사용)
-├── istio-virtualservice.yaml    # 외부 접근용 VirtualService
-├── deploy.yaml                  # 배포 권한 설정
-├── kustomization.yaml           # 통합 배포 설정
 ├── build-images.sh              # Harbor 이미지 빌드 스크립트
 ├── update-deployment-images.sh  # Deployment YAML 이미지 태그 일괄 변경 스크립트
 ├── deploy-ctx1.sh               # CTX1 클러스터 전용 배포 스크립트
 ├── deploy-ctx2.sh               # CTX2 클러스터 전용 배포 스크립트
 ├── deploy-all.sh                # 멀티클라우드 통합 배포 스크립트
-├── cleanup.sh                   # 샘플 배포 일괄 삭제 스크립트
-├── istio-circuit-breaker.yaml   # 🆕 Circuit Breaker 교육용 DestinationRule
-├── istio-fault-injection.yaml   # 🆕 Fault Injection 시나리오 VirtualService
-├── fault-injection-demo.sh      # 🆕 장애 주입 및 복구 교육 스크립트
-├── issue.md                     # 🆕 문제 해결 과정 기록
-└── README.md                   # 이 파일
+└── cleanup.sh                   # 샘플 배포 일괄 삭제 스크립트
+
+practice/                        # Fault Injection 실습 관련 파일
+├── istio-circuit-breaker.yaml   # Circuit Breaker 교육용 DestinationRule
+├── istio-fault-injection.yaml   # Fault Injection 시나리오 VirtualService
+└── fault-injection-demo.sh      # 장애 주입 및 복구 교육 스크립트
+
+프로젝트 루트/
+├── README.md                   # 이 파일
+├── history.md                  # 개발 히스토리 및 향후 계획
+└── issue.md                    # 문제 해결 과정 기록
 ```
 
 ## 📋 사전 요구사항 및 제약조건
@@ -158,7 +161,7 @@ kubectl label nodes <node-name> cluster-name=ctx2 --context=ctx2
 #### 환경 설정
 ```bash
 # 작업 디렉토리로 이동
-cd k8s/
+cd deploy/
 
 # 도메인 환경변수 설정
 export DOMAIN="27.96.156.180.nip.io"
@@ -331,6 +334,9 @@ echo "🌐 웹 UI: https://theater.$DOMAIN"
 
 #### 장애 주입 환경 설정
 ```bash
+# practice 디렉토리로 이동
+cd ../practice/
+
 # Circuit Breaker 및 Fault Injection 설정 배포
 ./fault-injection-demo.sh setup
 
