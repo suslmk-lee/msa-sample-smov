@@ -3,4 +3,4 @@ kind: Kustomization
 
 resources:
 - destinationrules.yaml
-- ../01-initial/virtualservices.yaml
+- virtualservices.yaml
