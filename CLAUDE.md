@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Theater MSA (Microservices Architecture) is a multi-cloud cinema booking system demonstrating distributed microservices deployment across two Kubernetes clusters (NaverCloud and NHN Cloud) using Istio service mesh for traffic management.
 
+이 프로젝트는 K-PaaS 교육용 MSA 플랫폼으로, 실제 Istio 서비스메시의 트래픽 관리, Fault Injection, Circuit Breaker 등의 핵심 기능을 실습할 수 있는 종합 교육 환경을 제공합니다.
+
 ### Architecture Components
 
 - **API Gateway**: Central entry point with weighted traffic distribution to backend services
@@ -18,6 +20,8 @@ Theater MSA (Microservices Architecture) is a multi-cloud cinema booking system 
   - User Service: 70% CTX1, 30% CTX2
   - Movie Service: 30% CTX1, 70% CTX2  
   - Booking Service: 50% CTX1, 50% CTX2
+- **Fault Injection & Circuit Breaker**: 교육용 장애 시나리오 및 자동 복구 기능
+- **Real-time Traffic Visualization**: 실제 Istio 라우팅 결과 추적 및 시각화
 
 ## Development Commands
 
@@ -44,6 +48,16 @@ kubectl label nodes <node-name> cluster-name=ctx2 --context=ctx2
 
 # Set Harbor domain (required for image registry)
 export DOMAIN=27.96.156.180.nip.io  # Replace with your domain
+```
+
+#### Quick Start (교육용 권장)
+```bash
+# 전체 멀티클러스터 통합 배포
+cd deploy/
+./deploy-all.sh
+
+# 웹 UI 접근
+echo "https://theater.$DOMAIN"
 ```
 
 #### Image Building and Registry
@@ -139,21 +153,28 @@ Defines service subsets (`ctx1`, `ctx2`) for traffic targeting based on cluster 
 
 ## Important Files
 
-### Kubernetes Manifests
-- `*-multicloud.yaml`: Multi-cluster service deployments
-- `istio-virtualservices.yaml`: Traffic splitting configuration
-- `istio-destinationrules.yaml`: Service subset definitions
-- `ui-configmap.yaml`: Frontend UI with traffic visualization
+### Deployment Directory (deploy/)
+- `deploy-all.sh`: 멀티클러스터 통합 배포 스크립트 (교육용 권장)
+- `deploy-ctx1.sh`, `deploy-ctx2.sh`: 개별 클러스터 배포
+- `cleanup.sh`: 일괄 정리 스크립트
+- `*-ctx1.yaml`, `*-ctx2.yaml`: 클러스터별 서비스 배포 매니페스트
+- `istio-virtualservices.yaml`: 트래픽 분산 설정
+- `istio-destinationrules.yaml`: 서비스 subset 정의
+- `ui-configmap.yaml`: 실시간 트래픽 시각화 UI
 
-### Scripts
-- `deploy-all.sh`: Multi-cluster deployment orchestration
-- `build-images.sh`: Container image build and push
-- `update-deployment-images.sh`: Update image tags in manifests
+### Practice Directory (practice/)
+- `fault-injection-demo.sh`: Fault Injection 교육 시나리오 관리
+- `01-initial/`: 기본 Round Robin 설정
+- `02-circuit-breaker/`: Circuit Breaker 설정
+- `03-delay-fault/`: 지연 장애 시나리오
+- `04-error-fault/`: 오류 장애 시나리오
+- `05-block-fault/`: 클러스터 차단 시나리오
+- `99-scenarios/`: 복합 장애 시나리오
 
 ### Service Code
-- `api-gateway/main.go`: Central gateway with weighted routing
-- `services/*/handlers.go`: REST API implementations
-- `services/*/store.go`: Redis integration layer
+- `api-gateway/main.go`: 중앙 게이트웨이 (가중치 라우팅, K8s 연동)
+- `services/*/handlers.go`: REST API 구현 (실제 클러스터 정보 헤더 포함)
+- `services/*/store.go`: Redis 연동 레이어
 
 ## Traffic Visualization
 
@@ -211,4 +232,39 @@ curl -H 'x-canary: true' http://theater.$DOMAIN/users/
 ```bash
 # Multiple requests to observe load balancing
 for i in {1..10}; do curl -s http://theater.$DOMAIN/users/ | head -1; done
+
+# 실제 라우팅 결과 확인 (헤더 포함)
+curl -v http://theater.$DOMAIN/users/ 2>&1 | grep "X-Service-Cluster"
+```
+
+## Fault Injection 실습
+
+### 교육 시나리오 실행
+```bash
+cd practice/
+
+# 사용 가능한 시나리오 확인
+./fault-injection-demo.sh --help
+
+# 권장 학습 순서
+./fault-injection-demo.sh reset    # 초기 상태
+./fault-injection-demo.sh setup    # Circuit Breaker 설정
+./fault-injection-demo.sh delay    # 지연 장애
+./fault-injection-demo.sh error    # 오류 장애  
+./fault-injection-demo.sh block    # 클러스터 차단
+./fault-injection-demo.sh chaos    # 복합 장애
+
+# 상태 확인 및 테스트
+./fault-injection-demo.sh status   # 현재 설정 확인
+./fault-injection-demo.sh test     # API 응답 테스트
+```
+
+### Circuit Breaker 테스트
+```bash
+# 고오류율 테스트 (Circuit Breaker 트리거용)
+curl -H "x-circuit-test: true" http://theater.$DOMAIN/users/
+
+# Envoy 통계 확인
+kubectl exec -n theater-msa deployment/api-gateway -- \
+  curl -s localhost:15000/stats | grep user_service
 ```
