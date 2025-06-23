@@ -59,35 +59,55 @@ API Gateway (8080)
 ## 📁 파일 구조
 
 ```
-k8s/
+deploy/                          # 애플리케이션 배포 관련 파일
 ├── namespace.yaml                # 네임스페이스 및 설정 (Istio injection 활성화)
 ├── redis.yaml                   # Redis 데이터 저장소 (자동 초기 데이터)
-├── user-service.yaml            # 사용자 서비스 (기본)
-├── movie-service.yaml           # 영화 서비스 (기본)
-├── booking-service.yaml         # 예약 서비스 (기본)
-├── user-service-multicloud.yaml # 멀티클라우드 사용자 서비스 (ctx1, ctx2)
-├── movie-service-multicloud.yaml # 멀티클라우드 영화 서비스 (ctx1, ctx2)  
-├── booking-service-multicloud.yaml # 멀티클라우드 예약 서비스 (ctx1, ctx2)
-├── api-gateway.yaml             # API 게이트웨이 (단순 프록시)
+├── redis-ctx1-service.yaml      # CTX1 Redis Service (멀티클러스터 접근)
+├── redis-multicluster.yaml      # Redis 멀티클러스터 설정
+├── user-service-ctx1.yaml       # 사용자 서비스 CTX1
+├── user-service-ctx2.yaml       # 사용자 서비스 CTX2
+├── movie-service-ctx1.yaml      # 영화 서비스 CTX1
+├── movie-service-ctx2.yaml      # 영화 서비스 CTX2
+├── booking-service-ctx1.yaml    # 예약 서비스 CTX1
+├── booking-service-ctx2.yaml    # 예약 서비스 CTX2
+├── api-gateway-ctx1.yaml        # API 게이트웨이 (CTX1 전용)
 ├── rbac.yaml                    # API Gateway용 서비스 계정 및 권한 설정
 ├── ui-configmap.yaml            # UI 파일 (Istio 설정 표시)
 ├── istio-destinationrules.yaml  # DestinationRule (클러스터별 subset)
 ├── istio-virtualservices.yaml   # VirtualService (가중치 기반 라우팅)
-├── istio-gateway.yaml           # Istio Gateway (cp-gateway 사용)
-├── istio-virtualservice.yaml    # 외부 접근용 VirtualService
-├── deploy.yaml                  # 배포 권한 설정
-├── kustomization.yaml           # 통합 배포 설정
 ├── build-images.sh              # Harbor 이미지 빌드 스크립트
 ├── update-deployment-images.sh  # Deployment YAML 이미지 태그 일괄 변경 스크립트
 ├── deploy-ctx1.sh               # CTX1 클러스터 전용 배포 스크립트
 ├── deploy-ctx2.sh               # CTX2 클러스터 전용 배포 스크립트
 ├── deploy-all.sh                # 멀티클라우드 통합 배포 스크립트
-├── cleanup.sh                   # 샘플 배포 일괄 삭제 스크립트
-├── istio-circuit-breaker.yaml   # 🆕 Circuit Breaker 교육용 DestinationRule
-├── istio-fault-injection.yaml   # 🆕 Fault Injection 시나리오 VirtualService
-├── fault-injection-demo.sh      # 🆕 장애 주입 및 복구 교육 스크립트
-├── issue.md                     # 🆕 문제 해결 과정 기록
-└── README.md                   # 이 파일
+└── cleanup.sh                   # 샘플 배포 일괄 삭제 스크립트
+
+practice/                        # Fault Injection 실습 관련 파일
+├── fault-injection-demo.sh      # 장애 주입 교육 스크립트 (리팩토링)
+├── 01-initial/                  # 초기 상태 (Round Robin + 기본 트래픽)
+│   ├── destinationrules.yaml   # 기본 DestinationRule
+│   ├── virtualservices.yaml    # 기본 VirtualService
+│   └── kustomization.yaml      # 통합 배포 설정
+├── 02-circuit-breaker/          # Circuit Breaker 실습
+│   ├── destinationrules.yaml   # Circuit Breaker DestinationRule
+│   └── kustomization.yaml      # Circuit Breaker 적용 설정
+├── 03-delay-fault/              # 지연 장애 실습
+│   ├── virtualservices.yaml    # Movie Service 지연 VirtualService
+│   └── kustomization.yaml      # 지연 장애 적용 설정
+├── 04-error-fault/              # 오류 장애 실습
+│   ├── virtualservices.yaml    # User Service 오류 VirtualService
+│   └── kustomization.yaml      # 오류 장애 적용 설정
+├── 05-block-fault/              # 차단 장애 실습
+│   ├── virtualservices.yaml    # Booking Service 차단 VirtualService
+│   └── kustomization.yaml      # 차단 장애 적용 설정
+└── 99-scenarios/                # 복합 장애 실습
+    ├── multi-service-fault.yaml # 다중 서비스 복합 장애
+    └── kustomization.yaml       # 복합 장애 적용 설정
+
+프로젝트 루트/
+├── README.md                   # 이 파일
+├── history.md                  # 개발 히스토리 및 향후 계획
+└── issue.md                    # 문제 해결 과정 기록
 ```
 
 ## 📋 사전 요구사항 및 제약조건
@@ -158,7 +178,7 @@ kubectl label nodes <node-name> cluster-name=ctx2 --context=ctx2
 #### 환경 설정
 ```bash
 # 작업 디렉토리로 이동
-cd k8s/
+cd deploy/
 
 # 도메인 환경변수 설정
 export DOMAIN="27.96.156.180.nip.io"
@@ -217,8 +237,11 @@ kubectl get pods -n theater-msa --context=ctx2 -o wide
 
 #### 방법 2: 수동 배포 (고급 사용자)
 
-##### Step 1: ctx1 클러스터 (User Service + API Gateway)
+##### Step 1: ctx1 클러스터 (API Gateway + Services)
 ```bash
+# deploy 디렉토리로 이동
+cd deploy/
+
 # ctx1 클러스터 접속
 kubectl config use-context ctx1
 
@@ -226,47 +249,61 @@ kubectl config use-context ctx1
 kubectl apply -f namespace.yaml
 kubectl apply -f rbac.yaml
 kubectl apply -f ui-configmap.yaml
-kubectl apply -f redis.yaml
 
-# 멀티클라우드 서비스 배포 (클러스터 라벨 포함)
-kubectl apply -f user-service-multicloud.yaml
-kubectl apply -f movie-service-multicloud.yaml
-kubectl apply -f booking-service-multicloud.yaml
-kubectl apply -f api-gateway.yaml
+# Redis 서비스 배포 (멀티클러스터 접근용)
+kubectl apply -f redis-ctx1-service.yaml
+
+# CTX1 전용 서비스 배포
+kubectl apply -f user-service-ctx1.yaml
+kubectl apply -f movie-service-ctx1.yaml
+kubectl apply -f booking-service-ctx1.yaml
+kubectl apply -f api-gateway-ctx1.yaml
 
 # Istio 트래픽 관리 설정 배포
 kubectl apply -f istio-destinationrules.yaml
 kubectl apply -f istio-virtualservices.yaml
-kubectl apply -f istio-virtualservice.yaml  # 외부 접근용
+
+# 외부 접근을 위한 VirtualService 배포 (istio-system 네임스페이스)
+kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: theater-msa
+  namespace: istio-system
+spec:
+  hosts:
+  - theater.${DOMAIN}
+  gateways:
+  - cp-gateway
+  http:
+  - route:
+    - destination:
+        host: api-gateway.theater-msa.svc.cluster.local
+        port:
+          number: 8080
+EOF
 ```
 
-##### Step 2: ctx2 클러스터 (Movie + Booking Service)  
+##### Step 2: ctx2 클러스터 (Services + Redis 실제 배포)  
 ```bash
 # ctx2 클러스터 접속
 kubectl config use-context ctx2
 
 # 기본 리소스 배포
 kubectl apply -f namespace.yaml
-kubectl apply -f redis.yaml
 
-# 멀티클라우드 서비스 배포 (클러스터 라벨 포함)
-kubectl apply -f user-service-multicloud.yaml
-kubectl apply -f movie-service-multicloud.yaml  
-kubectl apply -f booking-service-multicloud.yaml
+# Redis 실제 배포 (데이터 저장소)
+kubectl apply -f redis.yaml
+kubectl apply -f redis-multicluster.yaml
+
+# CTX2 전용 서비스 배포
+kubectl apply -f user-service-ctx2.yaml
+kubectl apply -f movie-service-ctx2.yaml  
+kubectl apply -f booking-service-ctx2.yaml
 
 # Istio 트래픽 관리 설정 배포
 kubectl apply -f istio-destinationrules.yaml
 kubectl apply -f istio-virtualservices.yaml
-```
-
-##### Step 3: Kustomize 사용 배포 (대안)
-```bash
-# 각 클러스터에서 실행 (모든 리소스 자동 배포)
-kubectl config use-context ctx1
-kubectl apply -k .
-
-kubectl config use-context ctx2  
-kubectl apply -k .
 ```
 
 #### 배포 후 검증
@@ -327,127 +364,150 @@ echo "🌐 웹 UI: https://theater.$DOMAIN"
 - **가중치 설정**: 현재 VirtualService 가중치 설정값
 - **클러스터별 Pod 배포 현황**: 클러스터별 Pod 배포 현황
 
-### 5. 🚨 Fault Injection 테스트
+### 5. 🚨 Fault Injection 실습
 
-#### 장애 주입 환경 설정
+Fault Injection 실습은 **명시적인 YAML 파일 기반**으로 운영되어 각 상태를 명확하게 확인할 수 있습니다.
+
+#### 실습 환경 준비
 ```bash
-# Circuit Breaker 및 Fault Injection 설정 배포
-./fault-injection-demo.sh setup
+# practice 디렉토리로 이동
+cd ../practice/
 
 # 사용 가능한 명령어 확인
 ./fault-injection-demo.sh --help
+
+# 🎯 권장 학습 순서:
+# 1. reset  → 초기 상태 확인
+# 2. setup  → Circuit Breaker 적용
+# 3. delay  → 지연 장애 실습
+# 4. error  → 오류 장애 실습
+# 5. block  → 차단 장애 실습
+# 6. chaos  → 복합 장애 실습
 ```
 
-#### 시나리오 1: Movie Service 지연 장애 (CTX2)
+#### 📁 실습 구조 (명시적 YAML 파일 기반)
+```
+practice/
+├── 01-initial/          # 초기 상태 (Round Robin + 기본 트래픽)
+├── 02-circuit-breaker/  # Circuit Breaker 실습
+├── 03-delay-fault/      # Movie Service 지연 장애
+├── 04-error-fault/      # User Service 오류 장애
+├── 05-block-fault/      # Booking Service 차단 장애
+└── 99-scenarios/        # 복합 장애 시나리오
+```
+
+#### Step 1: 초기 상태 확인
 ```bash
-# Movie Service에 3초 지연 장애 주입
+# 기본 Round Robin + 기본 트래픽 분산으로 초기화
+./fault-injection-demo.sh reset
+
+# 적용되는 설정:
+# - DestinationRule: Round Robin 로드밸런싱
+# - VirtualService: 기본 가중치 분산 (70:30, 30:70, 50:50)
+# - Circuit Breaker: 비활성화
+```
+
+#### Step 2: Circuit Breaker 설정 적용
+```bash
+# Circuit Breaker DestinationRule 적용
+./fault-injection-demo.sh setup
+
+# 적용되는 설정 (02-circuit-breaker/):
+# - Connection Pool 제한
+# - Outlier Detection 활성화
+# - 연속 실패 시 30초 자동 격리
+```
+
+#### Step 3: 지연 장애 실습
+```bash
+# Movie Service CTX2에 3초 지연 주입
 ./fault-injection-demo.sh delay
 
-# 웹 UI에서 Movie 섹션 새로고침 여러 번 클릭
-# - 30% 확률: 즉시 응답 (CTX1)
-# - 70% 확률: 3초 지연 (CTX2)
+# 적용되는 설정 (03-delay-fault/virtualservices.yaml):
+# - Movie Service CTX2: 70% 요청에 3초 지연
+# - 웹 UI에서 Movie 섹션 새로고침 시 간헐적 지연 확인
 ```
 
-#### 시나리오 2: Circuit Breaker 자동 장애 격리 ⭐
+#### Step 4: 오류 장애 실습
 ```bash
-# User Service에 30% 오류율 주입하여 Circuit Breaker 테스트
-./fault-injection-demo.sh circuit
-
-# 웹 UI에서 User 섹션을 연속으로 10-20회 새로고침
-# 또는 명령어로 직접 테스트:
-curl -k https://theater.${DOMAIN}/users/
-
-# 기본 테스트 관찰 포인트:
-# 1. 처음에는 약 70% 성공, 30% "fault filter abort" 오류 발생
-# 2. VirtualService 레벨에서 오류 주입 (실제 서비스는 건강 상태 유지)
-# 3. Envoy 통계로 실시간 모니터링 가능
-```
-
-#### Circuit Breaker 심화 테스트 및 분석
-```bash
-# 1. 고집중 오류 주입 테스트 (90% 오류율)
-curl -k -H "x-circuit-test: true" https://theater.${DOMAIN}/users/
-
-# 2. 연속 요청으로 Circuit Breaker 동작 관찰
-for i in {1..20}; do
-  echo "요청 $i: $(curl -s -w "HTTP_%{http_code}_%{time_total}s" \
-    -H "x-circuit-test: true" https://theater.${DOMAIN}/users/ 2>&1)"
-done
-
-# 3. Envoy 통계 실시간 모니터링
-kubectl exec deployment/api-gateway -n theater-msa --context=ctx1 -c istio-proxy -- \
-  curl -s localhost:15000/stats | grep user-service | grep -E "(health_flags|rq_error|outlier_detection)"
-
-# 4. Outlier Detection 상태 확인
-kubectl exec deployment/api-gateway -n theater-msa --context=ctx1 -c istio-proxy -- \
-  curl -s localhost:15000/stats | grep -E "outlier_detection.*ejections"
-```
-
-#### 🔬 Circuit Breaker 동작 원리 분석 (교육용)
-```bash
-# 중요한 기술적 발견사항:
-# 
-# 1. VirtualService Fault Injection의 한계:
-#    - VirtualService의 fault 설정은 Envoy proxy 레벨에서 처리
-#    - 실제 upstream 서비스에 도달하기 전에 오류 응답 생성
-#    - Outlier Detection은 실제 upstream 응답만 모니터링
-#
-# 2. Circuit Breaker가 동작하지 않는 이유:
-#    - "fault filter abort" 오류는 VirtualService에서 생성
-#    - 실제 서비스 인스턴스는 정상 상태 유지
-#    - consecutive_5xx 카운터가 증가하지 않음
-#
-# 3. 실제 Circuit Breaker 테스트 방법:
-#    - 서비스 자체를 다운시키거나 실제 5xx 오류 반환 필요
-#    - 또는 네트워크 레벨에서 연결 실패 시뮬레이션
-
-# 실제 Circuit Breaker 동작 확인 (서비스 다운)
-kubectl scale deployment user-service --replicas=0 -n theater-msa --context=ctx2
-
-# 이후 요청에서 "upstream connect error or disconnect/reset before headers" 확인
-curl -k https://theater.${DOMAIN}/users/
-
-# 서비스 복구 후 Circuit Breaker 복구 시간 관찰 (30초)
-kubectl scale deployment user-service --replicas=1 -n theater-msa --context=ctx2
-```
-
-#### Circuit Breaker 고급 교육 포인트
-```bash
-# 교육 목표:
-# - VirtualService Fault Injection vs 실제 서비스 장애의 차이점 이해
-# - response_flags.FI (Fault Injection) vs response_flags.UH (Circuit Breaker) 구분
-# - Outlier Detection이 감지하는 실제 조건들 학습
-# - Envoy proxy의 upstream health checking 메커니즘 이해
-
-# 실습 시나리오:
-# 1. VirtualService Fault Injection (교육용) → Circuit Breaker 미동작
-# 2. 실제 서비스 장애 시뮬레이션 → Circuit Breaker 정상 동작
-# 3. 네트워크 분할 시뮬레이션 → Outlier Detection 동작 확인
-```
-
-#### 시나리오 3: HTTP 500 오류 장애
-```bash
-# User Service에 50% HTTP 500 오류 주입
+# User Service에 30% HTTP 500 오류 주입
 ./fault-injection-demo.sh error
 
-# 웹 UI에서 User 섹션 새로고침으로 랜덤 오류 확인
+# 적용되는 설정 (04-error-fault/virtualservices.yaml):
+# - User Service: 30% 확률로 HTTP 500 오류
+# - x-circuit-test 헤더: 90% 오류율로 Circuit Breaker 테스트
+
+# Circuit Breaker 집중 테스트
+curl -k -H "x-circuit-test: true" https://theater.${DOMAIN}/users/
 ```
 
-#### 시나리오 4: 전체 클러스터 차단
+#### Step 5: 차단 장애 실습
 ```bash
 # Booking Service CTX2 클러스터 완전 차단
 ./fault-injection-demo.sh block
 
-# 웹 UI에서 Booking Service 신호등이 모두 녹색(CTX1)으로 변화 확인
+# 적용되는 설정 (05-block-fault/virtualservices.yaml):
+# - Booking Service: 100% CTX1으로 라우팅 (CTX2 차단)
+# - 웹 UI에서 신호등이 모두 녹색(CTX1)으로 변화 확인
 ```
 
-#### 장애 복구
+#### Step 6: 복합 장애 실습 (고급)
 ```bash
-# 모든 장애 주입 해제 및 정상 상태로 복원
-./fault-injection-demo.sh recover
+# 모든 서비스에 동시 장애 주입
+./fault-injection-demo.sh chaos
 
-# 웹 UI에서 모든 서비스가 원래 가중치로 복원 확인
+# 적용되는 설정 (99-scenarios/multi-service-fault.yaml):
+# - User Service: 30% HTTP 500 오류
+# - Movie Service: CTX2에 3초 지연
+# - Booking Service: CTX2 완전 차단
+# ⚠️ 시스템 전체가 불안정한 상태가 됩니다!
 ```
+
+#### 상태 확인 및 모니터링
+```bash
+# 현재 적용된 설정 상태 확인
+./fault-injection-demo.sh status
+
+# 실제 API 테스트 (5회씩 자동 실행)
+./fault-injection-demo.sh test
+
+# 수동 테스트
+curl -k https://theater.${DOMAIN}/users/
+curl -k https://theater.${DOMAIN}/movies/
+curl -k https://theater.${DOMAIN}/bookings/
+```
+
+#### 복구 방법
+```bash
+# 초기 상태로 완전 복원
+./fault-injection-demo.sh reset
+
+# 이전 단계로 되돌리기
+./fault-injection-demo.sh setup   # Circuit Breaker만 적용된 상태
+./fault-injection-demo.sh delay   # 지연 장애 상태
+./fault-injection-demo.sh error   # 오류 장애 상태
+./fault-injection-demo.sh block   # 차단 장애 상태
+```
+
+#### 🎓 교육적 효과
+
+##### 명시적 설정 관리
+- **투명성**: 각 시나리오의 YAML 파일을 직접 확인 가능
+- **재현성**: 언제든 동일한 상태로 복원 가능
+- **학습성**: 실제 Istio 설정 파일을 보며 학습
+
+##### 실무 적용성
+```bash
+# 실제 운영 환경에서 사용하는 방식과 동일
+kubectl apply -k practice/03-delay-fault/    # 지연 장애 적용
+kubectl apply -k practice/01-initial/        # 정상 상태 복원
+```
+
+##### 단계별 학습
+1. **기본 이해**: Round Robin → Circuit Breaker 차이점
+2. **장애 시뮬레이션**: 지연, 오류, 차단 각각의 특성
+3. **복합 시나리오**: 실제 운영에서 발생할 수 있는 복합 장애
+4. **복구 전략**: 상황에 맞는 적절한 복구 방법
 
 ### 6. API 테스트 및 검증
 
