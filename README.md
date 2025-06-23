@@ -1,6 +1,6 @@
 # K-PaaS Theater MSA - 멀티클러스터 서비스메시 교육 플랫폼
 
-이 프로젝트는 **K-PaaS 교육용** MSA(Microservices Architecture) 샘플 애플리케이션으로, **NaverCloud Platform**과 **NHN Cloud NKS**의 **Istio 서비스메시**를 활용한 **멀티클라우드 트래픽 관리 및 장애 복구**를 실습할 수 있는 종합 교육 플랫폼입니다.
+이 프로젝트는 **K-PaaS 교육용** MSA(Microservices Architecture) 샘플 애플리케이션으로, **NaverCloud Platform**과 **NHN Cloud NKS**의 **Istio 서비스메시**를 활용한 **멀티클라우드 트래픽 관리 및 장애 복구**를 실습할 수 있는 샘플 프로젝트입니다.
 
 ## 📋 프로젝트 개요
 
@@ -35,8 +35,6 @@
 - **Fault Injection**: 지연, 오류, 차단 등 다양한 장애 시나리오 실습
 - **Circuit Breaker**: 자동 장애 격리 및 복구 메커니즘 학습
 - **실시간 모니터링**: 웹 UI를 통한 트래픽 분산 및 장애 상황 시각화
-- **즉시 시연 가능**: 복잡한 설정 없이 빠른 배포 및 교육 시나리오 실행
-- **관측성 확인**: Kiali, Jaeger를 통한 트래픽 플로우 시각화
 - **실제 동작 확인**: REST API 테스트 및 장애 복구 과정 체험
 
 ## 🏗️ 아키텍처
@@ -904,122 +902,11 @@ kubectl get namespace theater-msa --context=ctx1
 kubectl get namespace theater-msa --context=ctx2
 ```
 
-## 📚 K-PaaS 교육 핵심 포인트
-
-### 1. MSA 핵심 개념
-- **서비스 분리**: 각 기능별 독립적인 서비스 (User, Movie, Booking)
-- **API 게이트웨이**: 단일 진입점 패턴으로 외부 트래픽 통합 관리
-- **멀티클러스터 데이터 저장소**: EastWestGateway를 통한 Redis 멀티클러스터 접근
-- **Istio 네이티브 트래픽 분산**: DestinationRule과 VirtualService를 통한 서비스메시 기반 로드 밸런싱
-
-### 2. Kubernetes 기본 개념
-- **Pod**: 애플리케이션 실행 단위 (Istio sidecar 포함)
-- **Deployment**: 애플리케이션 배포 관리 (멀티클러스터 nodeSelector)
-- **Service**: 서비스 디스커버리 및 내부 로드밸런싱
-- **ConfigMap**: 설정 데이터 분리 관리 (UI 파일 포함)
-- **RBAC**: 역할 기반 접근 제어 (Kubernetes API 권한)
-- **ServiceAccount**: Pod의 Kubernetes API 접근 인증
-
-### 3. Harbor Registry 및 DevOps 자동화
-- **프라이빗 레지스트리**: Harbor를 통한 컨테이너 이미지 중앙 관리
-- **자동화 스크립트**: 
-  - `build-images.sh`: 일괄 이미지 빌드 및 푸시
-  - `update-deployment-images.sh`: YAML 이미지 태그 일괄 변경
-- **멀티 런타임 지원**: Docker와 Podman 자동 감지
-- **백업 및 복원**: 안전한 설정 변경과 롤백 지원
-
-### 4. Istio 서비스메시 핵심 개념
-- **사이드카 패턴**: Envoy 프록시를 통한 투명한 네트워크 관리
-- **트래픽 관리**: VirtualService, DestinationRule을 통한 세밀한 라우팅
-- **보안**: mTLS 자동 적용으로 서비스간 암호화 통신
-- **관측성**: 분산 추적, 메트릭, 로깅 자동 수집
-- **🆕 장애 복구**: Circuit Breaker, Fault Injection을 통한 회복탄력성
-
-### 5. 멀티클라우드 서비스메시 (EASTWESTGATEWAY)
-- **자동 서비스 디스커버리**: 클러스터 간 자동 연결
-- **투명한 통신**: 애플리케이션 코드 변경 없이 멀티클러스터 통신
-- **트래픽 분산**: 클라우드별 로드밸런싱 및 장애 조치
-- **통합 관측성**: 전체 인프라에 걸친 통합 모니터링
-- **보안 정책**: 클라우드에 관계없이 일관된 mTLS 보안
-
-### 6. Istio 트래픽 관리 실습
-- **DestinationRule**: `cluster: ctx1/ctx2` 라벨을 통한 클러스터별 subset 분할
-- **VirtualService 가중치 라우팅**: 서비스별 차별화된 트래픽 분산
-  - User Service: 70% CTX1, 30% CTX2 (주요 서비스 안정성 우선)
-  - Movie Service: 30% CTX1, 70% CTX2 (부하 분산 우선)
-  - Booking Service: 50% CTX1, 50% CTX2 (균등 분산)
-- **카나리 배포**: `x-canary: true` 헤더를 통한 특정 클러스터 라우팅
-- **실시간 설정 변경**: kubectl patch를 통한 트래픽 비율 동적 조정
-
-### 7. 🆕 Fault Injection 및 회복탄력성
-- **지연 장애**: Movie Service에 3초 지연 주입으로 네트워크 지연 시뮬레이션
-- **오류 주입**: HTTP 500 오류를 통한 서비스 장애 시뮬레이션
-- **클러스터 차단**: 전체 클러스터 장애 상황 시뮬레이션
-- **Circuit Breaker**: 연속 실패 감지 후 자동 장애 격리 (30초 회복 시간)
-- **자동 복구**: 장애 해제 후 정상 트래픽 분산으로 자동 복원
-
-### 8. 실시간 모니터링 및 시각화
-- **트래픽 신호등**: 웹 UI를 통한 실시간 클러스터 라우팅 표시
-- **가중치 현황**: 현재 VirtualService 설정값 실시간 확인
-- **배포 상태**: 클러스터별 Pod 배포 현황 및 건강 상태
-- **장애 시각화**: Fault Injection 실행 중 트래픽 변화 실시간 관찰
-
-## 🎓 시연 체크리스트
-
-### 기본 배포 확인
-- [ ] 클러스터 연결 확인
-- [ ] Istio injection 활성화 확인
-- [ ] 모든 서비스 배포 완료
-- [ ] Pod에 Envoy 사이드카 주입 확인
-- [ ] Istio Gateway를 통한 외부 접근 가능
-
-### 서비스메시 기능 확인
-- [ ] VirtualService 트래픽 라우팅 동작
-- [ ] DestinationRule 로드밸런싱 정책 적용
-- [ ] mTLS 암호화 통신 확인
-- [ ] 서킷브레이커 및 재시도 정책 동작
-
-### 멀티클라우드 기능 확인 (EASTWESTGATEWAY)
-- [ ] ctx1, ctx2 클러스터 노드 라벨링 (`cluster-name=ctx1/ctx2`)
-- [ ] 클러스터별 서비스 분산 배치 확인
-  - [ ] ctx1: User Service, API Gateway (cp-gateway 위치)
-  - [ ] ctx2: Movie Service, Booking Service  
-- [ ] EASTWESTGATEWAY를 통한 자동 클러스터 간 연결
-- [ ] 원격 클러스터 서비스 자동 디스커버리
-- [ ] 투명한 멀티클러스터 서비스 호출 확인 (ctx1→ctx2, ctx2→ctx1)
-
-### 관측성 도구 확인
-- [ ] Kiali 서비스 토폴로지 시각화
-- [ ] Jaeger 분산 추적 확인
-- [ ] Prometheus 메트릭 수집 확인
-- [ ] 실시간 트래픽 플로우 모니터링
-
-## 💡 추가 학습 자료
-
-### Istio 고급 기능 실습
-- **카나리 배포**: VirtualService를 통한 점진적 배포
-- **A/B 테스트**: 트래픽 분할을 통한 버전 비교
-- **장애 주입**: Fault Injection을 통한 장애 복원력 테스트
-- **보안 정책**: AuthorizationPolicy를 통한 세밀한 접근 제어
-
-### EASTWESTGATEWAY 고급 시나리오
-- **멀티 클러스터 메시**: EASTWESTGATEWAY를 통한 투명한 클러스터 간 연동
-- **지역별 트래픽 라우팅**: 지연시간 기반 자동 라우팅
-- **DR(재해복구)**: 클러스터 장애 시 EASTWESTGATEWAY를 통한 자동 failover
-- **하이브리드 클라우드**: 온프레미스와 클라우드 간 투명한 연동
-- **서비스 로컬리티**: 가장 가까운 클러스터의 서비스 우선 호출
-
-### 실습 과제
-1. **VirtualService 수정**: 새로운 라우팅 규칙 추가
-2. **DestinationRule 최적화**: 로드밸런싱 알고리즘 변경
-3. **관측성 대시보드**: Grafana 대시보드 커스터마이징
-4. **보안 강화**: mTLS 정책 세부 설정
-
 ---
 
 ## ⚠️ 중요 알림
 
-이 **Istio DestinationRule/VirtualService 기반 MSA** 시연 환경은 NaverCloud와 NHN Cloud의 **사전 설치된 Istio와 EASTWESTGATEWAY**를 활용하여 복잡한 설정 없이 즉시 **멀티클라우드 서비스메시의 트래픽 관리 핵심 기능**들을 체험할 수 있도록 구성되었습니다.
+이 **Istio DestinationRule/VirtualService 기반 MSA** 시연 환경은 NaverCloud와 NHN Cloud의 **사전 설치된 Istio와 EASTWESTGATEWAY**를 활용하여 복잡한 설정 없이 즉시 **멀티클라우드 서비스메시의 트래픽 관리 핵심 기능**들을 시연할 수 있도록 구성되었습니다.
 
 ### 필수 준수사항
 1. **Context 명명**: 반드시 `ctx1`, `ctx2`로 설정해야 함

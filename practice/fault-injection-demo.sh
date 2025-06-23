@@ -101,11 +101,40 @@ k() {
     kubectl --context="$KUBECTL_CONTEXT" "$@"
 }
 
+# DestinationRule 정리 함수
+cleanup_existing_destinationrules() {
+    step "기존 DestinationRule 정리 중..."
+    
+    # 기존 기본 DestinationRule 삭제
+    local basic_drs=("user-service-dr" "movie-service-dr" "booking-service-dr")
+    for dr in "${basic_drs[@]}"; do
+        if k get dr $dr -n theater-msa &>/dev/null; then
+            log "기존 DestinationRule 삭제: $dr"
+            k delete dr $dr -n theater-msa 2>/dev/null || true
+        fi
+    done
+    
+    # Circuit Breaker DestinationRule 삭제
+    local cb_drs=("user-service-circuit-breaker" "movie-service-circuit-breaker" "booking-service-circuit-breaker")
+    for dr in "${cb_drs[@]}"; do
+        if k get dr $dr -n theater-msa &>/dev/null; then
+            log "Circuit Breaker DestinationRule 삭제: $dr"
+            k delete dr $dr -n theater-msa 2>/dev/null || true
+        fi
+    done
+    
+    info "DestinationRule 정리 완료"
+}
+
 # 시나리오별 적용 함수들
 apply_reset() {
     step "🔄 초기 상태로 완전 복원"
-    log "Round Robin DestinationRule + 기본 VirtualService 적용 중..."
     
+    # 1. 모든 기존 DR 정리
+    cleanup_existing_destinationrules
+    
+    # 2. 기본 설정 적용
+    log "Round Robin DestinationRule + 기본 VirtualService 적용 중..."
     k apply -k 01-initial/
     
     log "✅ 초기 상태로 복원 완료"
@@ -119,8 +148,12 @@ apply_reset() {
 
 apply_setup() {
     step "⚙️  Circuit Breaker 설정 적용"
-    log "Circuit Breaker DestinationRule 배포 중..."
     
+    # 1. 기존 기본 DR 삭제 (충돌 방지)
+    cleanup_existing_destinationrules
+    
+    # 2. Circuit Breaker 설정 적용
+    log "Circuit Breaker DestinationRule 배포 중..."
     k apply -k 02-circuit-breaker/
     
     log "✅ Circuit Breaker 설정 적용 완료"
@@ -198,9 +231,155 @@ apply_chaos() {
     echo "  - 완전 복구: $0 reset"
 }
 
+# State validation 함수
+validate_environment() {
+    step "환경 검증 중..."
+    
+    # 1. 클러스터 연결 확인
+    if ! k get nodes >/dev/null 2>&1; then
+        error "Kubernetes 클러스터 연결 실패"
+        return 1
+    fi
+    
+    # 2. 네임스페이스 확인
+    if ! k get namespace theater-msa >/dev/null 2>&1; then
+        error "theater-msa 네임스페이스가 존재하지 않습니다"
+        return 1
+    fi
+    
+    # 3. 기본 서비스 확인
+    local services=("user-service" "movie-service" "booking-service")
+    for svc in "${services[@]}"; do
+        if ! k get service $svc -n theater-msa >/dev/null 2>&1; then
+            error "서비스 $svc가 존재하지 않습니다"
+            return 1
+        fi
+    done
+    
+    info "환경 검증 완료"
+    return 0
+}
+
+# Rollback 함수  
+rollback_scenario() {
+    local scenario=$1
+    
+    step "🔄 $scenario 시나리오 롤백 중..."
+    
+    case $scenario in
+        "delay")
+            log "Movie Service 지연 장애 제거 중..."
+            # VirtualService를 기본 상태로 복원
+            kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: movie-service-vs
+  namespace: theater-msa
+spec:
+  hosts:
+  - movie-service
+  http:
+  - match:
+    - headers:
+        x-canary:
+          exact: "true"
+    route:
+    - destination:
+        host: movie-service
+        subset: ctx1
+      weight: 100
+  - route:
+    - destination:
+        host: movie-service
+        subset: ctx1
+      weight: 30
+    - destination:
+        host: movie-service
+        subset: ctx2
+      weight: 70
+EOF
+            ;;
+        "error")
+            log "User Service 오류 장애 제거 중..."
+            # 기본 VirtualService 복원
+            kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: user-service-vs
+  namespace: theater-msa
+spec:
+  hosts:
+  - user-service
+  http:
+  - match:
+    - headers:
+        x-canary:
+          exact: "true"
+    route:
+    - destination:
+        host: user-service
+        subset: ctx2
+      weight: 100
+  - route:
+    - destination:
+        host: user-service
+        subset: ctx1
+      weight: 70
+    - destination:
+        host: user-service
+        subset: ctx2
+      weight: 30
+EOF
+            ;;
+        "block")
+            log "Booking Service 차단 장애 제거 중..."
+            # 기본 VirtualService 복원
+            kubectl apply -f - <<EOF
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: booking-service-vs
+  namespace: theater-msa
+spec:
+  hosts:
+  - booking-service
+  http:
+  - match:
+    - headers:
+        x-canary:
+          exact: "true"
+    route:
+    - destination:
+        host: booking-service
+        subset: ctx1
+      weight: 100
+  - route:
+    - destination:
+        host: booking-service
+        subset: ctx1
+      weight: 50
+    - destination:
+        host: booking-service
+        subset: ctx2
+      weight: 50
+EOF
+            ;;
+    esac
+    
+    info "$scenario 시나리오 롤백 완료"
+}
+
 # 상태 확인
 check_status() {
     step "📊 현재 설정 상태 확인"
+    
+    # 환경 검증 먼저 수행
+    if ! validate_environment; then
+        error "환경 검증 실패"
+        return 1
+    fi
     
     echo ""
     info "🔧 DestinationRule 상태:"

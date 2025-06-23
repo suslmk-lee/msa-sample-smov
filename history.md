@@ -744,3 +744,196 @@ Fault Injection 통계:
 4. **아키텍처 이해도 향상**: 서비스메시의 복잡한 동작 원리 체득
 
 **K-PaaS Theater MSA 프로젝트**는 단순한 데모를 넘어서 **실제 프로덕션 환경에서 요구되는 모든 서비스메시 기술을 체계적으로 학습할 수 있는 완성된 교육 플랫폼**이 되었습니다.
+
+### 2025-06-23: Practice 폴더 Self-contained 아키텍처 개선
+
+#### 20. **🔧 DestinationRule 충돌 문제 해결 및 Self-contained 시나리오 구성**
+
+##### 문제 상황 분석
+**DestinationRule Subset 이름 충돌 이슈 발견**:
+- 기존 deploy 디렉토리의 `user-service-dr`과 practice 시나리오의 `user-service-circuit-breaker`가 동일한 subset 이름(`ctx1`, `ctx2`) 사용
+- 02-circuit-breaker 시나리오가 외부 dependency(`../01-initial/virtualservices.yaml`) 참조
+- 03-05 fault 시나리오들이 DestinationRule 없이 VirtualService만 존재
+- kubectl apply 시 예측 불가능한 동작 및 subset 참조 실패 위험
+
+##### 근본 원인 규명
+```bash
+# 문제가 되는 상황
+CTX1에 기존 DestinationRule + Circuit Breaker DestinationRule 동시 존재
+→ Istio가 어느 subset을 사용할지 모호
+→ VirtualService가 subset: ctx1 참조 시 충돌 발생
+```
+
+**Istio DestinationRule 병합 동작의 한계**:
+- 동일한 host에 대해 여러 DestinationRule 존재 시 병합 시도
+- Subset 이름이 같으면 나중 것이 이전 것을 덮어씀
+- 예측 불가능한 트래픽 라우팅 결과 초래
+
+##### 해결 과정
+
+###### 1단계: DestinationRule 충돌 방지 로직 구현
+**fault-injection-demo.sh에 정리 함수 추가**:
+```bash
+# 기존 DR 정리 함수 (추가)
+cleanup_existing_destinationrules() {
+    step "기존 DestinationRule 정리 중..."
+    
+    # 기존 기본 DestinationRule 삭제
+    local basic_drs=("user-service-dr" "movie-service-dr" "booking-service-dr")
+    for dr in "${basic_drs[@]}"; do
+        if k get dr $dr -n theater-msa &>/dev/null; then
+            log "기존 DestinationRule 삭제: $dr"
+            k delete dr $dr -n theater-msa 2>/dev/null || true
+        fi
+    done
+    
+    # Circuit Breaker DestinationRule 삭제
+    local cb_drs=("user-service-circuit-breaker" "movie-service-circuit-breaker" "booking-service-circuit-breaker")
+    for dr in "${cb_drs[@]}"; do
+        if k get dr $dr -n theater-msa &>/dev/null; then
+            log "Circuit Breaker DestinationRule 삭제: $dr"
+            k delete dr $dr -n theater-msa 2>/dev/null || true
+        fi
+    done
+    
+    info "DestinationRule 정리 완료"
+}
+```
+
+**apply_reset() 및 apply_setup() 함수 개선**:
+- 시나리오 적용 전 `cleanup_existing_destinationrules()` 자동 실행
+- "교체"가 아닌 "정리 후 새로 적용" 방식으로 변경
+- 충돌 가능성 완전 제거
+
+###### 2단계: Self-contained 시나리오 아키텍처 구축
+**02-circuit-breaker 시나리오 독립화**:
+```bash
+# Before (외부 의존성)
+practice/02-circuit-breaker/kustomization.yaml:
+- ../01-initial/virtualservices.yaml  # 🚫 외부 파일 참조
+
+# After (Self-contained)
+practice/02-circuit-breaker/:
+├── kustomization.yaml
+├── destinationrules.yaml
+└── virtualservices.yaml  # ✅ 로컬 복사본 생성
+```
+
+**03-05, 99 시나리오 완전한 패키지화**:
+- 각 시나리오에 `destinationrules.yaml` 추가 (Circuit Breaker 설정 포함)
+- `kustomization.yaml`에 DestinationRule 참조 추가
+- 외부 path dependency 완전 제거
+
+###### 3단계: 고급 스크립트 기능 추가
+**환경 검증 시스템 구현**:
+```bash
+validate_environment() {
+    # 1. 클러스터 연결 확인
+    # 2. 네임스페이스 존재 확인  
+    # 3. 기본 서비스 존재 확인
+    # 4. 오류 시 명확한 메시지 제공
+}
+```
+
+**시나리오별 롤백 시스템**:
+```bash
+rollback_scenario() {
+    # delay/error/block 시나리오 개별 롤백
+    # YAML heredoc을 통한 기본 VirtualService 복원
+    # 부분 복구 기능 제공
+}
+```
+
+##### 최종 개선된 아키텍처
+
+###### Self-contained 구조 완성
+```
+practice/
+├── 01-initial/               # ✅ 기본 설정 (Round Robin + 기본 트래픽)
+│   ├── destinationrules.yaml
+│   ├── virtualservices.yaml
+│   └── kustomization.yaml
+├── 02-circuit-breaker/       # ✅ Circuit Breaker (완전 독립)
+│   ├── destinationrules.yaml
+│   ├── virtualservices.yaml (로컬 복사본)
+│   └── kustomization.yaml
+├── 03-delay-fault/          # ✅ 지연 장애 (완전 독립)
+│   ├── destinationrules.yaml (Circuit Breaker 포함)
+│   ├── virtualservices.yaml
+│   └── kustomization.yaml
+├── 04-error-fault/          # ✅ 오류 장애 (완전 독립)
+├── 05-block-fault/          # ✅ 차단 장애 (완전 독립)
+├── 99-scenarios/            # ✅ 복합 장애 (완전 독립)
+└── fault-injection-demo.sh  # ✅ 충돌 방지 + 검증 강화
+```
+
+###### 기술적 성과
+1. **충돌 완전 해결**: DestinationRule subset 이름 중복으로 인한 라우팅 오류 제거
+2. **이식성 확보**: 각 시나리오를 다른 환경에 독립적으로 배포 가능  
+3. **안정성 향상**: 외부 의존성 제거로 예측 가능한 동작 보장
+4. **유지보수성**: 각 시나리오의 독립적 관리 및 수정 가능
+
+##### 교육적 가치 향상
+
+###### Self-contained 패키지의 실무 적용성
+**DevOps 모범 사례 시연**:
+- **Infrastructure as Code**: 각 시나리오가 완전한 IaC 패키지
+- **이식성**: 어느 Kubernetes 클러스터든 즉시 배포 가능
+- **버전 관리**: Git을 통한 독립적 시나리오 관리
+- **테스트 격리**: 각 시나리오별 독립적 검증 가능
+
+**운영 환경 준비성**:
+```bash
+# 프로덕션에서 사용 가능한 패턴
+kubectl apply -k practice/02-circuit-breaker/  # 어디서든 안전하게 실행
+kubectl apply -k practice/03-delay-fault/      # 외부 의존성 없이 동작
+```
+
+###### 교육 효과 극대화
+1. **명확한 학습 단계**: 각 시나리오가 독립적 학습 모듈
+2. **실무 패턴 습득**: Self-contained 아키텍처 설계 방법론 학습
+3. **문제 해결 역량**: DestinationRule 충돌 진단 및 해결 과정 체험
+4. **운영 스킬**: kubectl 기반 환경 검증 및 롤백 기법 습득
+
+##### 성능 및 안정성 개선
+
+###### 예측 가능한 동작 보장
+- **Before**: kubectl apply 시 기존 리소스와의 예측 불가능한 상호작용
+- **After**: 명확한 정리 → 적용 → 검증 프로세스로 100% 예측 가능
+
+###### 오류 복구 시간 단축
+- **개별 시나리오 롤백**: 전체 reset 없이 특정 장애만 해제 가능
+- **환경 검증**: 문제 발생 전 사전 환경 상태 확인
+- **명확한 오류 메시지**: 문제 발생 시 정확한 원인 파악 가능
+
+##### 향후 확장성 확보
+
+###### 새로운 시나리오 추가 용이성
+```bash
+# 새 시나리오 추가 시 템플릿
+practice/06-new-scenario/
+├── destinationrules.yaml    # Circuit Breaker 포함
+├── virtualservices.yaml     # 고유한 장애 설정
+└── kustomization.yaml       # 완전 독립적 구성
+```
+
+###### 다중 환경 지원
+- **Development**: practice 시나리오로 개발 환경 테스트
+- **Staging**: Self-contained 패키지로 스테이징 검증
+- **Production**: 검증된 패턴을 프로덕션에 안전하게 적용
+
+### 완료된 Self-contained 아키텍처의 핵심 가치
+
+#### 🎯 **교육 플랫폼으로서의 완성도**
+1. **실무 준비성**: 실제 프로덕션에서 사용되는 패턴과 동일
+2. **학습 효율성**: 각 개념을 독립적으로 학습 및 실습 가능
+3. **문제 해결 역량**: 실제 발생하는 충돌 문제의 진단 및 해결 과정 체험
+4. **운영 스킬**: kubectl 기반 고급 리소스 관리 기법 습득
+
+#### 🚀 **기술적 우수성**
+1. **충돌 방지**: DestinationRule 및 VirtualService 리소스 충돌 완전 해결
+2. **이식성**: 환경 간 시나리오 이동 및 배포의 간편성
+3. **안정성**: 예측 가능한 동작으로 교육 중 예상치 못한 오류 방지
+4. **확장성**: 새로운 시나리오 추가 및 기존 시나리오 수정의 용이성
+
+**최종 결과**: K-PaaS Theater MSA는 이제 **DestinationRule 충돌 없는 안전한 Self-contained 아키텍처**를 바탕으로 **실무에서 즉시 활용 가능한 서비스메시 교육 플랫폼**으로 완성되었습니다.

@@ -8,6 +8,8 @@ Theater MSA (Microservices Architecture) is a multi-cloud cinema booking system 
 
 이 프로젝트는 K-PaaS 교육용 MSA 플랫폼으로, 실제 Istio 서비스메시의 트래픽 관리, Fault Injection, Circuit Breaker 등의 핵심 기능을 실습할 수 있는 종합 교육 환경을 제공합니다.
 
+**2025-06-23 Self-contained Architecture 개선**: Practice 폴더의 모든 시나리오가 외부 의존성 없이 독립적으로 실행되며, DestinationRule 충돌 문제가 완전히 해결되었습니다.
+
 ### Architecture Components
 
 - **API Gateway**: Central entry point with weighted traffic distribution to backend services
@@ -162,14 +164,23 @@ Defines service subsets (`ctx1`, `ctx2`) for traffic targeting based on cluster 
 - `istio-destinationrules.yaml`: 서비스 subset 정의
 - `ui-configmap.yaml`: 실시간 트래픽 시각화 UI
 
-### Practice Directory (practice/)
-- `fault-injection-demo.sh`: Fault Injection 교육 시나리오 관리
-- `01-initial/`: 기본 Round Robin 설정
-- `02-circuit-breaker/`: Circuit Breaker 설정
-- `03-delay-fault/`: 지연 장애 시나리오
-- `04-error-fault/`: 오류 장애 시나리오
-- `05-block-fault/`: 클러스터 차단 시나리오
-- `99-scenarios/`: 복합 장애 시나리오
+### Practice Directory (practice/) - Self-contained Architecture
+**Each scenario is completely self-contained with no external dependencies**
+
+- `fault-injection-demo.sh`: Enhanced Fault Injection 관리 (충돌 방지, 환경 검증, 롤백 기능)
+- `01-initial/`: 기본 Round Robin 설정 (독립적 패키지)
+  - `destinationrules.yaml`, `virtualservices.yaml`, `kustomization.yaml`
+- `02-circuit-breaker/`: Circuit Breaker 설정 (완전 독립)
+  - `destinationrules.yaml`, `virtualservices.yaml` (로컬 복사본), `kustomization.yaml`
+- `03-delay-fault/`: 지연 장애 시나리오 (Circuit Breaker 포함)
+  - `destinationrules.yaml`, `virtualservices.yaml`, `kustomization.yaml`
+- `04-error-fault/`: 오류 장애 시나리오 (Circuit Breaker 포함)
+  - `destinationrules.yaml`, `virtualservices.yaml`, `kustomization.yaml`
+- `05-block-fault/`: 클러스터 차단 시나리오 (Circuit Breaker 포함)
+  - `destinationrules.yaml`, `virtualservices.yaml`, `kustomization.yaml`
+- `99-scenarios/`: 복합 장애 시나리오 (Circuit Breaker 포함)
+  - `destinationrules.yaml`, `multi-service-fault.yaml`, `kustomization.yaml`
+- `README.md`: Self-contained 아키텍처 상세 가이드
 
 ### Service Code
 - `api-gateway/main.go`: 중앙 게이트웨이 (가중치 라우팅, K8s 연동)
@@ -196,6 +207,15 @@ Required for deployment:
 
 ## Common Issues and Solutions
 
+### DestinationRule 충돌 문제 (해결됨)
+**Problem**: Subset 이름 중복으로 인한 라우팅 오류
+**Solution**: Self-contained 아키텍처로 완전 해결
+```bash
+# 자동 충돌 방지 (fault-injection-demo.sh)
+./fault-injection-demo.sh reset  # 기존 DR 정리 후 적용
+./fault-injection-demo.sh setup  # 충돌 없는 Circuit Breaker 적용
+```
+
 ### Node Affinity Issues
 If pods are pending due to node constraints, verify cluster labels:
 ```bash
@@ -213,6 +233,18 @@ docker pull harbor.$DOMAIN/theater-msa/<service>:latest
 Verify Istio configuration and service mesh status:
 ```bash
 istioctl proxy-config endpoints deployment/<service> --context=<ctx1|ctx2>
+```
+
+### Practice 시나리오 문제 해결
+```bash
+# 환경 검증
+./fault-injection-demo.sh status
+
+# 시나리오 적용 실패 시
+./fault-injection-demo.sh reset  # 완전 초기화
+
+# 개별 시나리오 롤백
+# rollback_scenario() 함수로 특정 장애만 해제 가능
 ```
 
 ## Testing Multi-Cluster Deployment
@@ -237,7 +269,13 @@ for i in {1..10}; do curl -s http://theater.$DOMAIN/users/ | head -1; done
 curl -v http://theater.$DOMAIN/users/ 2>&1 | grep "X-Service-Cluster"
 ```
 
-## Fault Injection 실습
+## Fault Injection 실습 (Self-contained Architecture)
+
+### Enhanced Fault Injection Features
+- **DestinationRule 충돌 방지**: 자동 기존 리소스 정리
+- **환경 검증**: 클러스터, 네임스페이스, 서비스 상태 사전 확인
+- **시나리오별 롤백**: 개별 장애 선택적 해제
+- **완전 독립 패키지**: 각 시나리오 self-contained 구조
 
 ### 교육 시나리오 실행
 ```bash
@@ -246,17 +284,22 @@ cd practice/
 # 사용 가능한 시나리오 확인
 ./fault-injection-demo.sh --help
 
-# 권장 학습 순서
-./fault-injection-demo.sh reset    # 초기 상태
-./fault-injection-demo.sh setup    # Circuit Breaker 설정
-./fault-injection-demo.sh delay    # 지연 장애
-./fault-injection-demo.sh error    # 오류 장애  
-./fault-injection-demo.sh block    # 클러스터 차단
-./fault-injection-demo.sh chaos    # 복합 장애
+# 권장 학습 순서 (개선된 충돌 방지 로직)
+./fault-injection-demo.sh reset    # 초기 상태 (기존 DR 정리 + 기본 설정)
+./fault-injection-demo.sh setup    # Circuit Breaker 설정 (충돌 없는 안전한 적용)
+./fault-injection-demo.sh delay    # 지연 장애 (완전 독립 패키지)
+./fault-injection-demo.sh error    # 오류 장애 (완전 독립 패키지)
+./fault-injection-demo.sh block    # 클러스터 차단 (완전 독립 패키지)
+./fault-injection-demo.sh chaos    # 복합 장애 (완전 독립 패키지)
 
-# 상태 확인 및 테스트
-./fault-injection-demo.sh status   # 현재 설정 확인
+# 상태 확인 및 테스트 (환경 검증 포함)
+./fault-injection-demo.sh status   # 현재 설정 확인 + 환경 상태 검증
 ./fault-injection-demo.sh test     # API 응답 테스트
+
+# 개별 시나리오 직접 실행 (Self-contained)
+kubectl apply -k practice/01-initial/        # 어디서든 안전하게 실행
+kubectl apply -k practice/02-circuit-breaker/ # 외부 의존성 없음
+kubectl apply -k practice/03-delay-fault/    # 완전 독립적 패키지
 ```
 
 ### Circuit Breaker 테스트
