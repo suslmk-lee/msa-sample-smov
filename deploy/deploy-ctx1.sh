@@ -91,7 +91,7 @@ deploy_ctx1_resources() {
     
     # 3. Redis Service (CTX2의 Redis를 멀티클러스터로 접근)
     log_info "3. Redis Service 배포..."
-    kubectl apply -f redis.yaml | grep -E "(service|Service)" || true
+    kubectl apply -f redis-ctx1-service.yaml
     
     # 4. User Service (CTX1 전용)
     log_info "4. User Service 배포..."
