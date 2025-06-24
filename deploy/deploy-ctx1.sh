@@ -155,7 +155,7 @@ check_deployment_status() {
     # Istio 리소스 확인
     log_info "Istio 리소스 확인 중..."
     kubectl get destinationrules,virtualservices -n theater-msa
-    kubectl get virtualservices -n istio-system theater-msa 2>/dev/null || log_warning "외부 VirtualService가 배포되지 않았습니다."
+    kubectl get virtualservices -n istio-system 2>/dev/null | grep -E "(theater|msa)" || log_warning "외부 VirtualService가 배포되지 않았습니다."
     
     echo
     
