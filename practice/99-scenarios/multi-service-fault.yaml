@@ -57,18 +57,9 @@ spec:
   - fault:
       delay:
         percentage:
-          value: 70.0
+          value: 30.0
         fixedDelay: 3s
-    match:
-    - headers:
-        destination-subset:
-          exact: "ctx2"
     route:
-    - destination:
-        host: movie-service
-        subset: ctx2
-      weight: 100
-  - route:
     - destination:
         host: movie-service
         subset: ctx1
