@@ -413,9 +413,11 @@ check_status() {
     fi
     
     # Booking Service 차단 확인
-    local booking_ctx2_weight=$(k get vs booking-service-vs -n theater-msa -o jsonpath='{.spec.http[-1].route[1].weight}' 2>/dev/null || echo "50")
-    if [ "$booking_ctx2_weight" = "null" ] || [ "$booking_ctx2_weight" = "0" ] || [ -z "$booking_ctx2_weight" ]; then
+    local booking_subsets=$(k get vs booking-service-vs -n theater-msa -o jsonpath='{.spec.http[-1].route[*].destination.subset}' 2>/dev/null || echo "")
+    if [[ "$booking_subsets" == "ctx1" && ! "$booking_subsets" =~ ctx2 ]]; then
         echo "  🚫 Booking Service: CTX2 차단 활성화"
+    elif [ -z "$booking_subsets" ]; then
+        echo "  ❌ Booking Service: 설정 오류"
     else
         echo "  ✅ Booking Service: 정상"
     fi
