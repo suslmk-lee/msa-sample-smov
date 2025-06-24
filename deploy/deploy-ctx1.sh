@@ -107,7 +107,7 @@ deploy_ctx1_resources() {
     
     # 7. API Gateway (ctx1 전용)
     log_info "7. API Gateway 배포..."
-    kubectl apply -f api-gateway.yaml
+    kubectl apply -f api-gateway-ctx1.yaml
     
     # 8. Istio 트래픽 관리 (DestinationRule & VirtualService)
     log_info "8. Istio DestinationRule 배포..."

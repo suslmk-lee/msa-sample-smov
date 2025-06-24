@@ -213,7 +213,7 @@ docker login harbor.${DOMAIN}
 
 ### 3. 멀티클러스터 서비스 배포
 
-#### 🎯 교육 권장 방법: 자동 배포 스크립트
+#### 방법 1: 자동 배포 스크립트
 ```bash
 # 전체 멀티클러스터 통합 배포 (CTX1 + CTX2)
 export DOMAIN="27.96.156.180.nip.io"
@@ -222,15 +222,6 @@ export DOMAIN="27.96.156.180.nip.io"
 # 배포 상태 확인
 kubectl get pods -n theater-msa --context=ctx1 -o wide
 kubectl get pods -n theater-msa --context=ctx2 -o wide
-```
-
-#### 개별 클러스터 배포 (선택사항)
-```bash
-# CTX1만 배포 (NaverCloud Platform)
-./deploy-ctx1.sh
-
-# CTX2만 배포 (NHN Cloud NKS) 
-./deploy-ctx2.sh
 ```
 
 #### 방법 2: 수동 배포 (고급 사용자)
@@ -383,7 +374,7 @@ cd ../practice/
 # 6. chaos  → 복합 장애 실습
 ```
 
-#### 📁 실습 구조 (명시적 YAML 파일 기반)
+#### 📁 실습 폴더 구조
 ```
 practice/
 ├── 01-initial/          # 초기 상태 (Round Robin + 기본 트래픽)
