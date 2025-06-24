@@ -42,6 +42,8 @@ echo ">>> 이미지 태그 업데이트 중..."
 
 # API Gateway 이미지 업데이트 (CTX1 only)
 if [ -f "api-gateway-ctx1.yaml" ]; then
+    sed -i.tmp "s|image: theater-msa/api-gateway:latest|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/api-gateway:latest|g" api-gateway-ctx1.yaml
+    sed -i.tmp "s|image: theater-msa/api-gateway:.*|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/api-gateway:latest|g" api-gateway-ctx1.yaml
     sed -i.tmp "s|image: api-gateway:latest|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/api-gateway:latest|g" api-gateway-ctx1.yaml
     sed -i.tmp "s|image: api-gateway:.*|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/api-gateway:latest|g" api-gateway-ctx1.yaml
     echo "  ✓ api-gateway-ctx1.yaml 업데이트 완료"
@@ -50,6 +52,8 @@ fi
 # User Service 이미지 업데이트 (CTX1 & CTX2)
 for CTX in ctx1 ctx2; do
     if [ -f "user-service-${CTX}.yaml" ]; then
+        sed -i.tmp "s|image: theater-msa/user-service:latest|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/user-service:latest|g" user-service-${CTX}.yaml
+        sed -i.tmp "s|image: theater-msa/user-service:.*|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/user-service:latest|g" user-service-${CTX}.yaml
         sed -i.tmp "s|image: user-service:latest|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/user-service:latest|g" user-service-${CTX}.yaml
         sed -i.tmp "s|image: user-service:.*|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/user-service:latest|g" user-service-${CTX}.yaml
         echo "  ✓ user-service-${CTX}.yaml 업데이트 완료"
@@ -59,6 +63,8 @@ done
 # Movie Service 이미지 업데이트 (CTX1 & CTX2)
 for CTX in ctx1 ctx2; do
     if [ -f "movie-service-${CTX}.yaml" ]; then
+        sed -i.tmp "s|image: theater-msa/movie-service:latest|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/movie-service:latest|g" movie-service-${CTX}.yaml
+        sed -i.tmp "s|image: theater-msa/movie-service:.*|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/movie-service:latest|g" movie-service-${CTX}.yaml
         sed -i.tmp "s|image: movie-service:latest|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/movie-service:latest|g" movie-service-${CTX}.yaml
         sed -i.tmp "s|image: movie-service:.*|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/movie-service:latest|g" movie-service-${CTX}.yaml
         echo "  ✓ movie-service-${CTX}.yaml 업데이트 완료"
@@ -68,6 +74,8 @@ done
 # Booking Service 이미지 업데이트 (CTX1 & CTX2)
 for CTX in ctx1 ctx2; do
     if [ -f "booking-service-${CTX}.yaml" ]; then
+        sed -i.tmp "s|image: theater-msa/booking-service:latest|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/booking-service:latest|g" booking-service-${CTX}.yaml
+        sed -i.tmp "s|image: theater-msa/booking-service:.*|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/booking-service:latest|g" booking-service-${CTX}.yaml
         sed -i.tmp "s|image: booking-service:latest|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/booking-service:latest|g" booking-service-${CTX}.yaml
         sed -i.tmp "s|image: booking-service:.*|image: ${HARBOR_REGISTRY}/${PROJECT_NAME}/booking-service:latest|g" booking-service-${CTX}.yaml
         echo "  ✓ booking-service-${CTX}.yaml 업데이트 완료"
