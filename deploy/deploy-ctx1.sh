@@ -118,9 +118,15 @@ deploy_ctx1_resources() {
     
     # 9. 외부 접근용 VirtualService (istio-system 네임스페이스)
     log_info "10. 외부 접근용 VirtualService 배포..."
-    # Note: External VirtualService might be handled by existing cp-gateway configuration
     if [ -f "istio-virtualservice.yaml" ]; then
-        kubectl apply -f istio-virtualservice.yaml
+        # 도메인 교체 및 적용
+        if [ -n "$DOMAIN" ]; then
+            sed "s/DOMAIN_PLACEHOLDER/$DOMAIN/g" istio-virtualservice.yaml | kubectl apply -f -
+            log_success "외부 VirtualService 배포 완료 (theater.$DOMAIN)"
+        else
+            log_warning "DOMAIN 환경변수가 설정되지 않았습니다. 외부 접근이 제한될 수 있습니다."
+            kubectl apply -f istio-virtualservice.yaml
+        fi
     else
         log_info "외부 VirtualService 파일이 없습니다. 기존 게이트웨이 설정을 사용합니다."
     fi
