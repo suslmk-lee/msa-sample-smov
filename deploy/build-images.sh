@@ -23,7 +23,6 @@ fi
 HARBOR_REGISTRY="harbor.${DOMAIN}"
 PROJECT_NAME="theater-msa"
 
-# 현재 시간을 태그로 사용 (이미지 캐시 문제 해결)
 IMAGE_TAG="latest"
 
 echo "=== Harbor Registry 이미지 빌드 시작 ==="
