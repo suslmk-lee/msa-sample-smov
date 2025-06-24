@@ -118,7 +118,12 @@ deploy_ctx1_resources() {
     
     # 9. 외부 접근용 VirtualService (istio-system 네임스페이스)
     log_info "10. 외부 접근용 VirtualService 배포..."
-    kubectl apply -f istio-virtualservice.yaml
+    # Note: External VirtualService might be handled by existing cp-gateway configuration
+    if [ -f "istio-virtualservice.yaml" ]; then
+        kubectl apply -f istio-virtualservice.yaml
+    else
+        log_info "외부 VirtualService 파일이 없습니다. 기존 게이트웨이 설정을 사용합니다."
+    fi
     
     # 10. Istio Gateway (필요시)
     if [ -f "istio-gateway.yaml" ]; then
